@@ -556,11 +556,11 @@ Para `orders`, `order_items`, `payments`, `webhook_events`:
 
 ```mermaid
 erDiagram
-  CUSTOMERS ||--o{ CARTS : "owns_optional"
-  CUSTOMERS ||--o{ ORDERS : "optional_ref"
+  CUSTOMERS o|--o{ CARTS : "owns_optional"
+  CUSTOMERS o|--o{ ORDERS : "optional_ref"
   CARTS ||--o{ CART_ITEMS : "contains"
   CARTS ||--o{ STOCK_RESERVATIONS : "orchestrates"
-  CART_ITEMS ||--o| STOCK_RESERVATIONS : "line_optional"
+  CART_ITEMS o|--o{ STOCK_RESERVATIONS : "line_optional"
   CART_ITEMS }o--|| PRODUCT : "references"
   STOCK_RESERVATIONS }o--|| PRODUCT : "references"
   ORDERS ||--o{ ORDER_ITEMS : "snapshots"
@@ -639,11 +639,14 @@ erDiagram
 
 Cardinalidades:
 
-- `ORDERS ||--o{ PAYMENTS` — una orden, muchos intentos.
-- `ORDERS o|--o{ WEBHOOK_EVENTS` / `PAYMENTS o|--o{ WEBHOOK_EVENTS` —
-  correlación opcional (nullable FKs).
-- `ORDERS o|--o{ STOCK_RESERVATIONS` — `order_id` nullable hasta conversión.
-- `PRODUCT` externo.
+- `CUSTOMERS o|--o{ CARTS` — un CART puede tener 0 o 1 CUSTOMER (`carts.customer_id` nullable / guest); un CUSTOMER puede tener 0 o muchos CARTS.
+- `CUSTOMERS o|--o{ ORDERS` — una ORDER puede tener 0 o 1 CUSTOMER durable (`orders.customer_id` nullable / guest); un CUSTOMER puede tener 0 o muchas ORDERS; el **snapshot** del comprador en `orders` sigue siendo obligatorio.
+- `CART_ITEMS o|--o{ STOCK_RESERVATIONS` — una STOCK_RESERVATION puede relacionarse con 0 o 1 CART_ITEM (`cart_item_id` nullable); un CART_ITEM puede tener 0 o muchas STOCK_RESERVATIONS históricas (p. ej. ACTIVE→EXPIRED y luego una nueva ACTIVE). **No** existe `UNIQUE(cart_item_id)`.
+- `CARTS ||--o{ CART_ITEMS` / `CARTS ||--o{ STOCK_RESERVATIONS` — un carrito contiene sus líneas y orquesta sus reservas.
+- `ORDERS ||--o{ ORDER_ITEMS` / `ORDERS ||--o{ PAYMENTS` — una orden, muchos ítems e intentos de pago.
+- `ORDERS o|--o{ STOCK_RESERVATIONS` — `order_id` nullable hasta la conversión del carrito.
+- `ORDERS o|--o{ WEBHOOK_EVENTS` / `PAYMENTS o|--o{ WEBHOOK_EVENTS` — `order_id` / `payment_id` nullable hasta resolver correlación.
+- `PRODUCT` externo (integration boundary).
 
 ---
 
