@@ -1,0 +1,1669 @@
+openapi: 3.1.0
+info:
+  title: Project Rotor API
+  version: 0.1.0
+  summary: Public REST contract for Project Rotor transactional commerce.
+  description: |
+    Public API contract for the transactional commerce flow of Project Rotor.
+
+    Conceptual flow:
+
+    Inventario → Catálogo → Carrito → Checkout → Orden → Pasarela sandbox →
+    Webhook → Confirmación → Conciliación
+
+    Conceptual stack:
+    - Frontend: Next.js / React / TypeScript
+    - Backend API: Laravel (PHP)
+    - Persistence: MySQL
+    - Authentication: Laravel Sanctum (cookie-based session)
+    - Payments: sandbox providers only
+
+    Identifier strategy:
+    Resource identifiers (`id`, `product_id`, `cartItemId`, `orderId`, etc.)
+    use UUID (`format: uuid`) consistently across this contract.
+
+    Inventory and reservation rules (business contract, not implementation):
+    - `available_quantity = quantity - reserved_quantity`
+    - Adding or updating cart lines must not exceed available stock
+    - Checkout must re-validate availability and active reservations
+    - Order creation requires a still-valid reservation and keeps it active
+    - Transition to PAID applies the definitive inventory effect exactly once
+    - FAILED, EXPIRED, or CANCELLED releases the reservation when applicable
+
+    Order state machine (allowed transitions only):
+    - DRAFT → PENDING_PAYMENT
+    - DRAFT → CANCELLED
+    - PENDING_PAYMENT → PAID
+    - PENDING_PAYMENT → FAILED
+    - PENDING_PAYMENT → EXPIRED
+    - PENDING_PAYMENT → CANCELLED
+    - PAID → FULFILLED
+
+    Arbitrary transitions are not allowed. In particular, transitions such as
+    FULFILLED → DRAFT, PAID → DRAFT, or FAILED → PAID are not part of this
+    contract unless an explicitly documented future extension says otherwise.
+
+    Authentication and CSRF (conceptual):
+    Project Rotor contemplates cookie/session authentication compatible with
+    Laravel Sanctum. CORS does not replace authentication. Mutable
+    authenticated operations must consider CSRF protection according to the
+    definitive mechanism chosen by the implementation. The cookie name
+    `rotor_session` is conceptual and may change. This contract does not
+    invent private cookies or endpoints from any existing system.
+
+    CORS (HTTP configuration, not authentication or authorization):
+    CORS is backend HTTP configuration only. When frontend and API run on
+    different origins and cookies are used: the frontend origin must be
+    authorized explicitly; credentialed requests must be supported when
+    applicable; required methods and headers must be allowed; and
+    `Access-Control-Allow-Origin: *` must not be recommended with credentials.
+    CORS is neither authentication nor authorization.
+
+    Payment confirmation:
+    Browser return/redirect from the payment gateway is NOT an authoritative
+    payment confirmation and must never drive the definitive transition to
+    PAID by itself. Transition to PAID depends on a signature-validated
+    webhook or an explicit reconciliation against the provider—never on
+    browser query parameters alone.
+
+    Functional HTTP mapping (conceptual preference):
+    - 401 → UNAUTHENTICATED
+    - 403 → FORBIDDEN
+    - 404 → RESOURCE_NOT_FOUND
+    - 409 → IDEMPOTENCY_CONFLICT, INVALID_ORDER_STATE, PRICE_CHANGED,
+      and other current-resource state conflicts
+    - 422 → VALIDATION_ERROR, CART_EMPTY, INSUFFICIENT_STOCK,
+      RESERVATION_EXPIRED
+    - 502 → PAYMENT_PROVIDER_ERROR for applicable upstream provider failures
+
+    Webhook duplicate handling:
+    If `X-Webhook-Id` / `event_id` was already processed, the API must return
+    HTTP 200 with an idempotent acknowledgement, without re-running business
+    effects (no second inventory deduction, no repeated state transition).
+    `DUPLICATE_WEBHOOK_EVENT` may be retained as an internal/informational
+    code, but a legitimate provider retry must not receive an error status
+    that encourages infinite retries.
+  license:
+    name: All Rights Reserved
+    url: https://github.com/RAMA-0611/cedar-harbor/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: Catalog
+    description: Public product catalog endpoints.
+  - name: Cart
+    description: Authenticated shopping cart and temporary stock reservations.
+  - name: Checkout
+    description: Pre-order validation of cart, stock, prices, and buyer data.
+  - name: Orders
+    description: Order creation, consultation, status, and cancellation.
+  - name: Payments
+    description: Sandbox payment intent initiation.
+  - name: Webhooks
+    description: |
+      Provider-to-backend payment event ingestion (signature-verified).
+      Duplicate deliveries are acknowledged with HTTP 200 (idempotent).
+  - name: Reconciliation
+    description: |
+      Administrative/system verification against the payment provider.
+      Not a normal buyer/customer self-service action.
+
+paths:
+  /api/products:
+    get:
+      tags: [Catalog]
+      operationId: listProducts
+      summary: List catalog products
+      description: |
+        Returns a paginated list of publicly visible products.
+        Minimal contract so cart and checkout can reference products.
+      security: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number (1-based).
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Items per page.
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+          description: Optional free-text search over name/SKU.
+      responses:
+        "200":
+          description: Product list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+              examples:
+                sample:
+                  summary: Synthetic catalog page
+                  value:
+                    data:
+                      - id: "11111111-1111-4111-8111-111111111111"
+                        sku: "ROTOR-BRG-6205"
+                        name: "Rodamiento industrial"
+                        unit_price: "45000.00"
+                        currency: "COP"
+                        available_quantity: 24
+                        tax_rate: "0.1900"
+                      - id: "22222222-2222-4222-8222-222222222222"
+                        sku: "ROTOR-CBL-3X10"
+                        name: "Cable de potencia"
+                        unit_price: "18900.00"
+                        currency: "COP"
+                        available_quantity: 150
+                        tax_rate: "0.1900"
+                      - id: "33333333-3333-4333-8333-333333333333"
+                        sku: "ROTOR-CTR-40A"
+                        name: "Contactor trifásico"
+                        unit_price: "128500.00"
+                        currency: "COP"
+                        available_quantity: 8
+                        tax_rate: "0.1900"
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total: 3
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/products/{productId}:
+    get:
+      tags: [Catalog]
+      operationId: getProduct
+      summary: Get product by id
+      description: Returns a single product summary for catalog and cart reference.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          description: Product found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductSummary"
+              examples:
+                bearing:
+                  summary: Synthetic product
+                  value:
+                    id: "11111111-1111-4111-8111-111111111111"
+                    sku: "ROTOR-BRG-6205"
+                    name: "Rodamiento industrial"
+                    unit_price: "45000.00"
+                    currency: "COP"
+                    available_quantity: 24
+                    tax_rate: "0.1900"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/cart:
+    get:
+      tags: [Cart]
+      operationId: getCart
+      summary: Get current cart
+      description: |
+        Returns the authenticated user's active cart, including line items,
+        totals, currency, and optional expiration of the cart session/reservation window.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Active cart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+              examples:
+                withItems:
+                  value:
+                    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                    items:
+                      - id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                        product_id: "11111111-1111-4111-8111-111111111111"
+                        sku: "ROTOR-BRG-6205"
+                        name: "Rodamiento industrial"
+                        quantity: 2
+                        unit_price: "45000.00"
+                        tax_amount: "17100.00"
+                        line_total: "107100.00"
+                        available_quantity: 24
+                        reservation_expires_at: "2026-09-18T16:30:00Z"
+                    subtotal: "90000.00"
+                    tax_total: "17100.00"
+                    total: "107100.00"
+                    currency: "COP"
+                    expires_at: "2026-09-18T16:30:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/cart/items:
+    post:
+      tags: [Cart]
+      operationId: addCartItem
+      summary: Add item to cart
+      description: |
+        Adds a product line to the cart or increases quantity when the product
+        already exists in the cart (implementation may merge lines).
+        Quantity must not exceed `available_quantity`
+        (`available_quantity = quantity - reserved_quantity`).
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCartItemRequest"
+            examples:
+              addBearing:
+                value:
+                  product_id: "11111111-1111-4111-8111-111111111111"
+                  quantity: 2
+      responses:
+        "200":
+          description: Cart updated after adding the item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: |
+            Validation or stock/reservation constraint failed
+            (`VALIDATION_ERROR`, `INSUFFICIENT_STOCK`, `RESERVATION_EXPIRED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                insufficientStock:
+                  value:
+                    code: INSUFFICIENT_STOCK
+                    message: Requested quantity exceeds available stock.
+                    details:
+                      product_id: "11111111-1111-4111-8111-111111111111"
+                      requested: 50
+                      available_quantity: 24
+                    trace_id: "trace-synth-0001"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/cart/items/{cartItemId}:
+    parameters:
+      - $ref: "#/components/parameters/CartItemId"
+    patch:
+      tags: [Cart]
+      operationId: updateCartItem
+      summary: Update cart item quantity
+      description: |
+        Updates the quantity of an existing cart line. Must not exceed
+        `available_quantity` (`quantity - reserved_quantity`).
+        May refresh reservation expiry.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCartItemRequest"
+            examples:
+              setQuantity:
+                value:
+                  quantity: 3
+      responses:
+        "200":
+          description: Cart updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cart"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          description: |
+            Validation or stock/reservation constraint failed
+            (`VALIDATION_ERROR`, `INSUFFICIENT_STOCK`, `RESERVATION_EXPIRED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Cart]
+      operationId: removeCartItem
+      summary: Remove cart item
+      description: Removes a line from the cart and releases its reservation when applicable.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Item removed. No response body.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/checkout/validate:
+    post:
+      tags: [Checkout]
+      operationId: validateCheckout
+      summary: Validate checkout prerequisites
+      description: |
+        Validates the cart and buyer payload before order creation:
+        - cart exists;
+        - cart is not empty;
+        - availability is re-checked
+          (`available_quantity = quantity - reserved_quantity`);
+        - reservations still valid;
+        - prices still match catalog snapshot expectations;
+        - basic customer data;
+        - delivery mode (PICKUP or COORDINATED_SHIPPING).
+
+        Does not model carriers or complex logistics.
+        Constraint failures such as `CART_EMPTY`, `INSUFFICIENT_STOCK`,
+        and `RESERVATION_EXPIRED` are reported under HTTP 422.
+        `PRICE_CHANGED` is reported under HTTP 409 as a resource/state conflict.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+            examples:
+              pickup:
+                value:
+                  customer:
+                    name: "Cliente Demo Rotor"
+                    email: "cliente.demo@example.test"
+                    phone: "+570000000000"
+                    document_type: "CC"
+                    document_number: "1000000000"
+                  delivery:
+                    mode: PICKUP
+      responses:
+        "200":
+          description: Validation result (may be valid or invalid with errors).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutValidation"
+              examples:
+                valid:
+                  value:
+                    valid: true
+                    cart:
+                      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                      items:
+                        - id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                          product_id: "11111111-1111-4111-8111-111111111111"
+                          sku: "ROTOR-BRG-6205"
+                          name: "Rodamiento industrial"
+                          quantity: 2
+                          unit_price: "45000.00"
+                          tax_amount: "17100.00"
+                          line_total: "107100.00"
+                          available_quantity: 24
+                          reservation_expires_at: "2026-09-18T16:30:00Z"
+                      subtotal: "90000.00"
+                      tax_total: "17100.00"
+                      total: "107100.00"
+                      currency: "COP"
+                      expires_at: "2026-09-18T16:30:00Z"
+                    validation_errors: []
+                    totals:
+                      subtotal: "90000.00"
+                      tax_total: "17100.00"
+                      total: "107100.00"
+                      currency: "COP"
+                invalid:
+                  value:
+                    valid: false
+                    cart:
+                      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                      items: []
+                      subtotal: "0.00"
+                      tax_total: "0.00"
+                      total: "0.00"
+                      currency: "COP"
+                      expires_at: null
+                    validation_errors:
+                      - code: CART_EMPTY
+                        message: Cart has no items.
+                      - code: RESERVATION_EXPIRED
+                        message: One or more reservations have expired.
+                    totals:
+                      subtotal: "0.00"
+                      tax_total: "0.00"
+                      total: "0.00"
+                      currency: "COP"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          description: |
+            Resource/state conflict such as `PRICE_CHANGED` between cart
+            snapshot and current catalog prices.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                priceChanged:
+                  value:
+                    code: PRICE_CHANGED
+                    message: One or more cart unit prices no longer match the catalog.
+                    details: {}
+                    trace_id: "trace-synth-0007"
+        "422":
+          description: |
+            Request or business validation failed
+            (`VALIDATION_ERROR`, `CART_EMPTY`, `INSUFFICIENT_STOCK`,
+            `RESERVATION_EXPIRED`). Soft validation outcomes may also appear
+            in the 200 body via `validation_errors`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders:
+    post:
+      tags: [Orders]
+      operationId: createOrder
+      summary: Create order from validated cart
+      description: |
+        Creates an order from the authenticated user's cart after checkout
+        validation rules are satisfied.
+
+        Requires header `Idempotency-Key` to prevent duplicate orders on
+        client retries. Replaying the same key with the same payload must
+        return the original order; conflicting payloads with the same key
+        yield `IDEMPOTENCY_CONFLICT` (HTTP 409).
+
+        Order creation requires a still-valid stock reservation. On success
+        the order stores price snapshots on each line so totals do not depend
+        on later product price changes, and the reservation remains active
+        until payment outcome or expiry handling.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+            examples:
+              create:
+                value:
+                  customer:
+                    name: "Cliente Demo Rotor"
+                    email: "cliente.demo@example.test"
+                    phone: "+570000000000"
+                    document_type: "CC"
+                    document_number: "1000000000"
+                  delivery:
+                    mode: COORDINATED_SHIPPING
+      responses:
+        "201":
+          description: Order created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+              examples:
+                created:
+                  value:
+                    id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+                    order_number: "RTR-20260918-0001"
+                    status: PENDING_PAYMENT
+                    currency: "COP"
+                    subtotal: "90000.00"
+                    tax_total: "17100.00"
+                    total: "107100.00"
+                    customer:
+                      name: "Cliente Demo Rotor"
+                      email: "cliente.demo@example.test"
+                      phone: "+570000000000"
+                      document_type: "CC"
+                      document_number: "1000000000"
+                    delivery:
+                      mode: COORDINATED_SHIPPING
+                    items:
+                      - id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+                        product_id: "11111111-1111-4111-8111-111111111111"
+                        sku: "ROTOR-BRG-6205"
+                        product_name: "Rodamiento industrial"
+                        quantity: 2
+                        unit_price: "45000.00"
+                        tax_amount: "17100.00"
+                        line_total: "107100.00"
+                    created_at: "2026-09-18T15:00:00Z"
+                    updated_at: "2026-09-18T15:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          description: |
+            Resource/state conflict:
+            `IDEMPOTENCY_CONFLICT`, `INVALID_ORDER_STATE`, or `PRICE_CHANGED`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                idempotencyConflict:
+                  value:
+                    code: IDEMPOTENCY_CONFLICT
+                    message: Idempotency-Key was reused with a different payload.
+                    details: {}
+                    trace_id: "trace-synth-0002"
+                priceChanged:
+                  value:
+                    code: PRICE_CHANGED
+                    message: One or more cart unit prices no longer match the catalog.
+                    details: {}
+                    trace_id: "trace-synth-0008"
+        "422":
+          description: |
+            Validation or commerce constraint failed:
+            `VALIDATION_ERROR`, `CART_EMPTY`, `INSUFFICIENT_STOCK`,
+            `RESERVATION_EXPIRED`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders/{orderId}:
+    get:
+      tags: [Orders]
+      operationId: getOrder
+      summary: Get order by id
+      description: Returns the full order resource including customer, delivery, and line snapshots.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Order found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders/{orderId}/status:
+    get:
+      tags: [Orders]
+      operationId: getOrderStatus
+      summary: Get order status
+      description: Lightweight status probe for the order state machine.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Current status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderStatusResponse"
+              examples:
+                pending:
+                  value:
+                    order_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+                    status: PENDING_PAYMENT
+                    updated_at: "2026-09-18T15:05:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      operationId: cancelOrder
+      summary: Cancel order when allowed
+      description: |
+        Cancels an order only when the state machine permits it
+        (typically DRAFT or PENDING_PAYMENT → CANCELLED). Invalid transitions
+        return `INVALID_ORDER_STATE`. Successful cancellation should release
+        reservations when applicable.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Order cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Cancellation not allowed in current state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                invalidState:
+                  value:
+                    code: INVALID_ORDER_STATE
+                    message: Order cannot be cancelled from PAID.
+                    details:
+                      current_status: PAID
+                    trace_id: "trace-synth-0003"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders/{orderId}/payment-intent:
+    post:
+      tags: [Payments]
+      operationId: createPaymentIntent
+      summary: Create sandbox payment intent
+      description: |
+        Creates or initiates a sandbox payment operation for the order.
+        Never accepts or returns real provider secret keys.
+        Provider enum is limited to sandbox-capable conceptual providers.
+
+        The `redirect_url` enables the buyer payment UX only. Browser
+        return/redirect from the gateway is NOT an authoritative payment
+        confirmation and must never, by itself, transition the order to PAID.
+        Definitive confirmation requires a signature-validated webhook or
+        an explicit administrative reconciliation against the provider.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentIntentRequest"
+            examples:
+              wompi:
+                value:
+                  provider: WOMPI
+      responses:
+        "200":
+          description: Payment intent created or resumed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentIntent"
+              examples:
+                sandboxIntent:
+                  value:
+                    payment_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+                    provider: WOMPI
+                    provider_reference: "sandbox-ref-ROTOR-0001"
+                    status: PENDING
+                    redirect_url: "http://localhost:3000/checkout/payment/return?ref=sandbox-ref-ROTOR-0001"
+                    expires_at: "2026-09-18T15:30:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Order not eligible for payment intent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "502":
+          description: Upstream sandbox provider error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                providerError:
+                  value:
+                    code: PAYMENT_PROVIDER_ERROR
+                    message: Sandbox provider rejected the payment intent request.
+                    details: {}
+                    trace_id: "trace-synth-0004"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/webhooks/payments/{provider}:
+    post:
+      tags: [Webhooks]
+      operationId: receivePaymentWebhook
+      summary: Receive provider payment webhook
+      description: |
+        Provider → backend channel. Not authenticated with Sanctum/cookieAuth.
+
+        Conceptual headers:
+        - `X-Webhook-Signature` — HMAC or provider signature material
+        - `X-Webhook-Id` — unique event identifier from the provider
+
+        Final header names may be adapted to the selected provider later.
+
+        Processing rules:
+        - Signature must be validated before any business effect
+        - `webhook_id` / `event_id` identifies the event uniquely
+        - Processing must be idempotent
+        - If the same `X-Webhook-Id` / `event_id` was already processed:
+          do not re-run business effects (no second inventory deduction,
+          no repeated state transition); return HTTP 200 with an idempotent
+          acknowledgement (`accepted: true`, `duplicate: true`)
+        - `DUPLICATE_WEBHOOK_EVENT` may be used internally/informationally,
+          but a legitimate provider retry must not receive an error HTTP
+          status that encourages infinite retries
+        - Browser return/redirect from the payment gateway is NOT an
+          authoritative payment confirmation; transition to PAID depends on
+          a validated webhook or explicit reconciliation—never on browser
+          parameters alone
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/PaymentProvider"
+          description: Sandbox payment provider slug.
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Conceptual signature header (name may adapt per provider).
+        - name: X-Webhook-Id
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Conceptual unique event id header (name may adapt per provider).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookEvent"
+            examples:
+              paid:
+                value:
+                  event_id: "wh-synth-0001"
+                  provider: WOMPI
+                  provider_reference: "sandbox-ref-ROTOR-0001"
+                  order_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+                  payment_status: APPROVED
+                  occurred_at: "2026-09-18T15:10:00Z"
+                  payload:
+                    amount: "107100.00"
+                    currency: "COP"
+      responses:
+        "200":
+          description: |
+            Event accepted. Also used for idempotent duplicate delivery:
+            business effects are not re-applied; HTTP 200 avoids provider
+            retry storms.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAck"
+              examples:
+                accepted:
+                  value:
+                    accepted: true
+                    duplicate: false
+                duplicate:
+                  summary: Idempotent duplicate acknowledgement
+                  value:
+                    accepted: true
+                    duplicate: true
+        "400":
+          description: Invalid webhook signature.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                badSignature:
+                  value:
+                    code: INVALID_WEBHOOK_SIGNATURE
+                    message: Webhook signature validation failed.
+                    details: {}
+                    trace_id: "trace-synth-0005"
+        "422":
+          description: Event payload invalid for processing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/orders/{orderId}/reconcile:
+    post:
+      tags: [Reconciliation]
+      operationId: reconcileOrder
+      summary: Reconcile order against sandbox provider (admin/system)
+      description: |
+        Administrative or system operation — NOT a normal buyer/customer
+        checkout action. Verifies transaction state against the payment
+        provider when a webhook is missing or an inconsistency exists.
+
+        cookieAuth is retained conceptually until a dedicated RBAC scheme
+        exists; implementations must still restrict this endpoint to
+        administrative/system callers. Scheduled jobs are out of scope for
+        this contract revision.
+
+        Successful reconciliation may advance the order to PAID when the
+        provider confirms approval. Browser redirect parameters alone must
+        never be treated as authoritative confirmation.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Reconciliation result applied or confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconciliationResult"
+              examples:
+                synced:
+                  value:
+                    order_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+                    previous_status: PENDING_PAYMENT
+                    current_status: PAID
+                    provider: WOMPI
+                    provider_reference: "sandbox-ref-ROTOR-0001"
+                    reconciled: true
+                    message: Provider status synchronized successfully.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Order state does not allow reconciliation or conflict detected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Provider unreachable or returned an error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                provider:
+                  value:
+                    code: PAYMENT_PROVIDER_ERROR
+                    message: Unable to query sandbox provider status.
+                    details: {}
+                    trace_id: "trace-synth-0006"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: rotor_session
+      description: |
+        Conceptual cookie/session authentication compatible with Laravel
+        Sanctum. CORS does not replace authentication. Mutable authenticated
+        operations must consider CSRF protection according to the definitive
+        mechanism used by the implementation. The cookie name `rotor_session`
+        is conceptual and may change. This contract does not invent private
+        cookies or endpoints from any existing system. No bearer tokens are
+        defined here.
+
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Product UUID.
+    CartItemId:
+      name: cartItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Cart line UUID.
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Order UUID.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+      description: |
+        Mandatory client-generated key to prevent duplicate order creation
+        on retries. Same key + same payload → original result;
+        same key + different payload → IDEMPOTENCY_CONFLICT.
+
+  responses:
+    Unauthenticated:
+      description: Missing or invalid session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            unauthenticated:
+              value:
+                code: UNAUTHENTICATED
+                message: Authentication required.
+                details: {}
+                trace_id: "trace-synth-0401"
+    Forbidden:
+      description: Authenticated but not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            forbidden:
+              value:
+                code: FORBIDDEN
+                message: You are not allowed to access this resource.
+                details: {}
+                trace_id: "trace-synth-0403"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            notFound:
+              value:
+                code: RESOURCE_NOT_FOUND
+                message: Resource not found.
+                details: {}
+                trace_id: "trace-synth-0404"
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            validation:
+              value:
+                code: VALIDATION_ERROR
+                message: Request validation failed.
+                details:
+                  fields:
+                    quantity: ["must be at least 1"]
+                trace_id: "trace-synth-0422"
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            internal:
+              value:
+                code: INTERNAL_ERROR
+                message: Unexpected server error.
+                details: {}
+                trace_id: "trace-synth-0500"
+
+  schemas:
+    MoneyAmount:
+      type: string
+      description: Decimal money amount serialized as string to avoid floating-point drift.
+      pattern: "^[0-9]+(\\.[0-9]{2})?$"
+      examples:
+        - "45000.00"
+
+    CurrencyCode:
+      type: string
+      description: ISO-4217 currency code used by the commerce flow.
+      minLength: 3
+      maxLength: 3
+      examples:
+        - "COP"
+
+    OrderStatus:
+      type: string
+      description: |
+        Order state machine values. Allowed transitions only:
+        DRAFT → PENDING_PAYMENT | CANCELLED;
+        PENDING_PAYMENT → PAID | FAILED | EXPIRED | CANCELLED;
+        PAID → FULFILLED.
+        Arbitrary transitions (for example FULFILLED → DRAFT, PAID → DRAFT,
+        or FAILED → PAID) are outside this contract unless an explicitly
+        documented future extension says otherwise.
+      enum:
+        - DRAFT
+        - PENDING_PAYMENT
+        - PAID
+        - FULFILLED
+        - FAILED
+        - EXPIRED
+        - CANCELLED
+
+    PaymentProvider:
+      type: string
+      description: Conceptual sandbox payment providers supported by this contract.
+      enum:
+        - WOMPI
+        - MERCADOPAGO
+
+    PaymentStatus:
+      type: string
+      description: Normalized payment status for intents and webhook events.
+      enum:
+        - PENDING
+        - APPROVED
+        - DECLINED
+        - EXPIRED
+        - CANCELLED
+        - ERROR
+
+    ErrorCode:
+      type: string
+      description: |
+        Functional error codes used by ApiError.code.
+        HTTP mapping preference: UNAUTHENTICATED→401, FORBIDDEN→403,
+        RESOURCE_NOT_FOUND→404; IDEMPOTENCY_CONFLICT / INVALID_ORDER_STATE /
+        PRICE_CHANGED→409; VALIDATION_ERROR / CART_EMPTY / INSUFFICIENT_STOCK /
+        RESERVATION_EXPIRED→422; PAYMENT_PROVIDER_ERROR→502 when upstream.
+        DUPLICATE_WEBHOOK_EVENT is informational/internal — duplicate webhook
+        deliveries still return HTTP 200 acknowledgement and must not drive
+        provider retry loops.
+      enum:
+        - VALIDATION_ERROR
+        - UNAUTHENTICATED
+        - FORBIDDEN
+        - RESOURCE_NOT_FOUND
+        - CART_EMPTY
+        - INSUFFICIENT_STOCK
+        - RESERVATION_EXPIRED
+        - PRICE_CHANGED
+        - INVALID_ORDER_STATE
+        - IDEMPOTENCY_CONFLICT
+        - PAYMENT_PROVIDER_ERROR
+        - INVALID_WEBHOOK_SIGNATURE
+        - DUPLICATE_WEBHOOK_EVENT
+        - INTERNAL_ERROR
+
+    ApiError:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          description: Human-readable error summary.
+        details:
+          type: object
+          description: Optional structured details (fields, ids, counts).
+          additionalProperties: true
+        trace_id:
+          type: string
+          description: Optional correlation id for support/debugging.
+          examples:
+            - "trace-synth-0001"
+
+    ProductSummary:
+      type: object
+      required:
+        - id
+        - sku
+        - name
+        - unit_price
+        - currency
+        - available_quantity
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          description: Synthetic catalog SKU (not production data).
+          examples:
+            - "ROTOR-BRG-6205"
+        name:
+          type: string
+          examples:
+            - "Rodamiento industrial"
+        unit_price:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        available_quantity:
+          type: integer
+          minimum: 0
+          description: |
+            Sellable units. Conceptually
+            `available_quantity = quantity - reserved_quantity`.
+        tax_rate:
+          type: string
+          description: Optional tax rate as decimal string (e.g. 0.1900 = 19%).
+          pattern: "^[0-9]+(\\.[0-9]{1,4})?$"
+          examples:
+            - "0.1900"
+
+    ProductListResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+        meta:
+          type: object
+          required: [page, per_page, total]
+          additionalProperties: false
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            per_page:
+              type: integer
+              minimum: 1
+            total:
+              type: integer
+              minimum: 0
+
+    CartItem:
+      type: object
+      required:
+        - id
+        - product_id
+        - sku
+        - name
+        - quantity
+        - unit_price
+        - tax_amount
+        - line_total
+        - available_quantity
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_amount:
+          $ref: "#/components/schemas/MoneyAmount"
+        line_total:
+          $ref: "#/components/schemas/MoneyAmount"
+          description: Line total including tax for this item.
+        available_quantity:
+          type: integer
+          minimum: 0
+          description: Availability observed when the line was last validated.
+        reservation_expires_at:
+          type: ["string", "null"]
+          format: date-time
+          description: Expiration of the temporary stock reservation for this line.
+
+    Cart:
+      type: object
+      required:
+        - id
+        - items
+        - subtotal
+        - tax_total
+        - total
+        - currency
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        subtotal:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_total:
+          $ref: "#/components/schemas/MoneyAmount"
+        total:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        expires_at:
+          type: ["string", "null"]
+          format: date-time
+          description: Cart/reservation window expiry when applicable.
+
+    AddCartItemRequest:
+      type: object
+      required: [product_id, quantity]
+      additionalProperties: false
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      additionalProperties: false
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+
+    CustomerData:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+        - document_type
+        - document_number
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+          examples:
+            - "Cliente Demo Rotor"
+        email:
+          type: string
+          format: email
+          examples:
+            - "cliente.demo@example.test"
+        phone:
+          type: string
+          examples:
+            - "+570000000000"
+        document_type:
+          type: string
+          description: Identification document type code (synthetic).
+          examples:
+            - "CC"
+        document_number:
+          type: string
+          examples:
+            - "1000000000"
+
+    DeliveryData:
+      type: object
+      required: [mode]
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          description: Delivery modality. No carrier/logistics modeling in this contract.
+          enum:
+            - PICKUP
+            - COORDINATED_SHIPPING
+
+    CheckoutRequest:
+      type: object
+      required: [customer, delivery]
+      additionalProperties: false
+      properties:
+        customer:
+          $ref: "#/components/schemas/CustomerData"
+        delivery:
+          $ref: "#/components/schemas/DeliveryData"
+
+    CheckoutTotals:
+      type: object
+      required: [subtotal, tax_total, total, currency]
+      additionalProperties: false
+      properties:
+        subtotal:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_total:
+          $ref: "#/components/schemas/MoneyAmount"
+        total:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+
+    ValidationIssue:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+
+    CheckoutValidation:
+      type: object
+      required: [valid, cart, validation_errors, totals]
+      additionalProperties: false
+      properties:
+        valid:
+          type: boolean
+        cart:
+          $ref: "#/components/schemas/Cart"
+        validation_errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationIssue"
+        totals:
+          $ref: "#/components/schemas/CheckoutTotals"
+
+    OrderItem:
+      type: object
+      required:
+        - id
+        - product_id
+        - sku
+        - product_name
+        - quantity
+        - unit_price
+        - tax_amount
+        - line_total
+      additionalProperties: false
+      description: |
+        Immutable commercial snapshot taken at order creation time.
+        Later catalog price changes must not alter these fields.
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        product_name:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_amount:
+          $ref: "#/components/schemas/MoneyAmount"
+        line_total:
+          $ref: "#/components/schemas/MoneyAmount"
+
+    Order:
+      type: object
+      required:
+        - id
+        - order_number
+        - status
+        - currency
+        - subtotal
+        - tax_total
+        - total
+        - customer
+        - delivery
+        - items
+        - created_at
+        - updated_at
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          description: Human-readable order number (synthetic format).
+          examples:
+            - "RTR-20260918-0001"
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        subtotal:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_total:
+          $ref: "#/components/schemas/MoneyAmount"
+        total:
+          $ref: "#/components/schemas/MoneyAmount"
+        customer:
+          $ref: "#/components/schemas/CustomerData"
+        delivery:
+          $ref: "#/components/schemas/DeliveryData"
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderStatusResponse:
+      type: object
+      required: [order_id, status, updated_at]
+      additionalProperties: false
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        updated_at:
+          type: string
+          format: date-time
+
+    PaymentIntentRequest:
+      type: object
+      required: [provider]
+      additionalProperties: false
+      properties:
+        provider:
+          $ref: "#/components/schemas/PaymentProvider"
+
+    PaymentIntent:
+      type: object
+      required:
+        - payment_id
+        - provider
+        - provider_reference
+        - status
+        - redirect_url
+        - expires_at
+      additionalProperties: false
+      description: |
+        Sandbox payment intent. Never includes secret keys or credentials.
+        `redirect_url` is for buyer UX only. Browser return/redirect is not
+        authoritative confirmation of payment; PAID requires a validated
+        webhook or explicit reconciliation.
+      properties:
+        payment_id:
+          type: string
+          format: uuid
+        provider:
+          $ref: "#/components/schemas/PaymentProvider"
+        provider_reference:
+          type: string
+          description: Provider-side reference for the sandbox transaction.
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        redirect_url:
+          type: string
+          format: uri
+          description: |
+            Local/sandbox redirect URL for the payment UX. Completing this
+            redirect does not by itself confirm payment or transition to PAID.
+          examples:
+            - "http://localhost:3000/checkout/payment/return?ref=sandbox-ref-ROTOR-0001"
+        expires_at:
+          type: string
+          format: date-time
+
+    WebhookEvent:
+      type: object
+      required:
+        - event_id
+        - provider
+        - provider_reference
+        - payment_status
+        - occurred_at
+      additionalProperties: false
+      description: |
+        Provider event payload. After signature validation, an APPROVED event
+        may drive the definitive transition to PAID. Browser redirect
+        parameters alone must never do so. Duplicate `event_id` deliveries
+        are acknowledged with HTTP 200 without re-applying effects.
+      properties:
+        event_id:
+          type: string
+          description: Unique provider event id (also conveyed via X-Webhook-Id conceptually).
+        provider:
+          $ref: "#/components/schemas/PaymentProvider"
+        provider_reference:
+          type: string
+        order_id:
+          type: string
+          format: uuid
+          description: Optional order correlation when the provider payload includes it.
+        payment_status:
+          $ref: "#/components/schemas/PaymentStatus"
+        occurred_at:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          description: Opaque provider payload subset (sanitized/synthetic in examples).
+          additionalProperties: true
+
+    WebhookAck:
+      type: object
+      required: [accepted, duplicate]
+      additionalProperties: false
+      description: |
+        Idempotent webhook acknowledgement. When `duplicate` is true, no
+        inventory deduction or state transition is repeated; HTTP status
+        remains 200 so providers do not enter infinite retry loops.
+      properties:
+        accepted:
+          type: boolean
+        duplicate:
+          type: boolean
+          description: |
+            True when the same webhook/event id was already processed.
+            Business effects must not run again; HTTP 200 is still returned.
+
+    ReconciliationResult:
+      type: object
+      required:
+        - order_id
+        - previous_status
+        - current_status
+        - provider
+        - reconciled
+      additionalProperties: false
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        previous_status:
+          $ref: "#/components/schemas/OrderStatus"
+        current_status:
+          $ref: "#/components/schemas/OrderStatus"
+        provider:
+          $ref: "#/components/schemas/PaymentProvider"
+        provider_reference:
+          type: string
+        reconciled:
+          type: boolean
+        message:
+          type: string
