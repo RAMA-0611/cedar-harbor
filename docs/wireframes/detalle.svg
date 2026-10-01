@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1660" height="970" viewBox="0 0 1660 970" role="img" aria-labelledby="titulo desc">
+  <title id="titulo">Wireframe — Detalle de producto · Project Rotor</title>
+  <desc id="desc">Esquema de la ficha de producto: migas, zona de estado, imagen, datos, bloque de compra con selector de cantidad, confirmación y anotaciones.</desc>
+  <style>
+    text { font-family: "Segoe UI", Arial, sans-serif; fill: #222; }
+    .ttl { font-size: 20px; font-weight: 700; }
+    .h1 { font-size: 26px; font-weight: 700; }
+    .h2 { font-size: 18px; font-weight: 700; }
+    .t { font-size: 14px; }
+    .b { font-size: 15px; font-weight: 700; }
+    .s { font-size: 12px; fill: #555; }
+    .w { fill: #fff; }
+    .frame { fill: #fff; stroke: #333; stroke-width: 2; }
+    .band { fill: #e9e9e9; stroke: #bbb; }
+    .panel { fill: #fff; stroke: #888; stroke-width: 1.5; }
+    .field { fill: #fff; stroke: #777; }
+    .ph { fill: #e6e6e6; stroke: #aaa; }
+    .phx { stroke: #bbb; }
+    .bar { fill: #ddd; }
+    .pill { fill: #eee; stroke: #999; }
+    .badge { fill: #f4f4f4; stroke: #777; }
+    .btn1 { fill: #333; }
+    .btn2 { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .dash { fill: none; stroke: #777; stroke-dasharray: 6 4; }
+    .mk { fill: #1f6feb; }
+    .mkt { font-size: 13px; font-weight: 700; fill: #fff; }
+    .nt { font-size: 13px; fill: #222; }
+  </style>
+  <defs>
+    <g id="mk"><circle r="13" class="mk"/></g>
+  </defs>
+
+  <text x="20" y="36" class="ttl">Wireframe — Detalle de producto · Project Rotor · Entrega 2 (escritorio, 1280 px)</text>
+
+  <rect x="20" y="60" width="1240" height="880" class="frame"/>
+
+  <!-- Encabezado -->
+  <rect x="20" y="60" width="1240" height="64" class="band"/>
+  <rect x="44" y="76" width="32" height="32" rx="6" class="btn1"/>
+  <text x="60" y="98" class="b w" text-anchor="middle">R</text>
+  <text x="88" y="98" class="b">Proyecto Rotor</text>
+  <text x="1010" y="98" class="t">Catálogo</text>
+  <rect x="1100" y="78" width="130" height="30" rx="15" class="btn2"/>
+  <text x="1165" y="98" class="t" text-anchor="middle">Carrito (2)</text>
+
+  <!-- Migas y estado -->
+  <text x="50" y="156" class="t"><tspan text-decoration="underline">Catálogo</tspan>  /  Categoría  /  <tspan font-weight="700">Nombre del producto</tspan></text>
+  <rect x="50" y="172" width="1180" height="36" class="dash"/>
+  <text x="66" y="195" class="s">Zona de estado: cargando · producto no encontrado (404) · error + “Reintentar”</text>
+
+  <!-- Imagen -->
+  <rect x="50" y="228" width="520" height="420" class="ph"/>
+  <line x1="50" y1="228" x2="570" y2="648" class="phx"/>
+  <line x1="570" y1="228" x2="50" y2="648" class="phx"/>
+  <text x="310" y="444" class="s" text-anchor="middle">Imagen o ícono de la categoría</text>
+
+  <!-- Información -->
+  <rect x="610" y="228" width="110" height="24" rx="12" class="pill"/>
+  <text x="665" y="245" class="s" text-anchor="middle">Categoría</text>
+  <rect x="730" y="228" width="120" height="24" rx="12" class="pill"/>
+  <text x="790" y="245" class="s" text-anchor="middle">Condición</text>
+  <text x="610" y="292" class="h1">Nombre del producto</text>
+  <text x="610" y="320" class="s">Descripción técnica del producto</text>
+  <rect x="610" y="330" width="600" height="10" class="bar"/>
+  <rect x="610" y="348" width="480" height="10" class="bar"/>
+
+  <rect x="610" y="376" width="620" height="104" class="panel"/>
+  <text x="630" y="406" class="t"><tspan font-weight="700">SKU</tspan>   XX-XXX-0000</text>
+  <text x="630" y="434" class="t"><tspan font-weight="700">Categoría</tspan>   Nombre de categoría</text>
+  <text x="630" y="462" class="t"><tspan font-weight="700">Condición</tspan>   Nuevo / Reacondicionado</text>
+  <text x="930" y="406" class="t"><tspan font-weight="700">Marca</tspan>   Nombre de marca</text>
+  <text x="930" y="434" class="t"><tspan font-weight="700">Unidad de venta</tspan>   unidad</text>
+
+  <!-- Bloque de compra -->
+  <rect x="610" y="500" width="620" height="256" class="panel"/>
+  <text x="630" y="538" class="h2">$ 000.000 <tspan class="s">+ IVA por unidad</tspan></text>
+  <rect x="630" y="552" width="240" height="24" rx="12" class="badge"/>
+  <text x="750" y="569" class="s" text-anchor="middle">● Disponible · 24 unidades</text>
+  <text x="630" y="604" class="t">Cantidad</text>
+  <rect x="630" y="612" width="44" height="40" rx="6" class="btn2"/>
+  <text x="652" y="638" class="b" text-anchor="middle">−</text>
+  <rect x="680" y="612" width="80" height="40" class="field"/>
+  <text x="720" y="638" class="t" text-anchor="middle">1</text>
+  <rect x="766" y="612" width="44" height="40" rx="6" class="btn2"/>
+  <text x="788" y="638" class="b" text-anchor="middle">+</text>
+  <text x="826" y="630" class="s">Máximo disponible: 24 menos lo que ya</text>
+  <text x="826" y="646" class="s">está en el carrito</text>
+  <rect x="630" y="660" width="580" height="24" class="dash"/>
+  <text x="642" y="677" class="s">Mensaje de error de cantidad (anunciado con aria-live)</text>
+  <rect x="630" y="696" width="580" height="44" rx="6" class="btn1"/>
+  <text x="920" y="724" class="b w" text-anchor="middle">Agregar al carrito</text>
+
+  <rect x="610" y="772" width="620" height="40" class="dash"/>
+  <text x="626" y="797" class="t">✓ Producto agregado al carrito · <tspan text-decoration="underline">Ir al carrito</tspan></text>
+
+  <text x="610" y="842" class="t" text-decoration="underline">← Volver al catálogo</text>
+
+  <!-- Pie -->
+  <rect x="20" y="874" width="1240" height="66" class="band"/>
+  <text x="44" y="902" class="s">Proyecto Rotor · Prototipo académico — todos los productos, precios y existencias son sintéticos</text>
+  <text x="44" y="924" class="s">Catálogo · Carrito  |  Estados de demostración: carga · sin resultados · error</text>
+
+  <!-- Marcadores -->
+  <use href="#mk" x="36" y="140"/><text x="36" y="145" class="mkt" text-anchor="middle">1</text>
+  <use href="#mk" x="1228" y="176"/><text x="1228" y="181" class="mkt" text-anchor="middle">2</text>
+  <use href="#mk" x="1228" y="232"/><text x="1228" y="237" class="mkt" text-anchor="middle">3</text>
+  <use href="#mk" x="1216" y="608"/><text x="1216" y="613" class="mkt" text-anchor="middle">4</text>
+  <use href="#mk" x="1228" y="718"/><text x="1228" y="723" class="mkt" text-anchor="middle">5</text>
+  <use href="#mk" x="1228" y="776"/><text x="1228" y="781" class="mkt" text-anchor="middle">6</text>
+
+  <!-- Anotaciones -->
+  <text x="1290" y="92" class="h2">Anotaciones</text>
+
+  <use href="#mk" x="1304" y="128"/><text x="1304" y="133" class="mkt" text-anchor="middle">1</text>
+  <text x="1326" y="126" class="nt">Migas: catálogo / categoría /</text>
+  <text x="1326" y="144" class="nt">producto actual.</text>
+
+  <use href="#mk" x="1304" y="188"/><text x="1304" y="193" class="mkt" text-anchor="middle">2</text>
+  <text x="1326" y="186" class="nt">Zona de estado: carga, “Producto no</text>
+  <text x="1326" y="204" class="nt">encontrado” (404 RESOURCE_NOT_FOUND)</text>
+  <text x="1326" y="222" class="nt">y error con reintento.</text>
+
+  <use href="#mk" x="1304" y="266"/><text x="1304" y="271" class="mkt" text-anchor="middle">3</text>
+  <text x="1326" y="264" class="nt">Ficha: GET /api/products/{productId}.</text>
+  <text x="1326" y="282" class="nt">Categoría, condición, marca, unidad y</text>
+  <text x="1326" y="300" class="nt">descripción vienen del dominio de</text>
+  <text x="1326" y="318" class="nt">producto externo (no están en</text>
+  <text x="1326" y="336" class="nt">ProductSummary).</text>
+
+  <use href="#mk" x="1304" y="380"/><text x="1304" y="385" class="mkt" text-anchor="middle">4</text>
+  <text x="1326" y="378" class="nt">Cantidad: mínimo 1; máximo</text>
+  <text x="1326" y="396" class="nt">available_quantity menos lo que ya hay</text>
+  <text x="1326" y="414" class="nt">en el carrito; botones − / + y error</text>
+  <text x="1326" y="432" class="nt">accesible.</text>
+
+  <use href="#mk" x="1304" y="476"/><text x="1304" y="481" class="mkt" text-anchor="middle">5</text>
+  <text x="1326" y="474" class="nt">“Agregar al carrito” →</text>
+  <text x="1326" y="492" class="nt">POST /api/cart/items {product_id,</text>
+  <text x="1326" y="510" class="nt">quantity}. Sin stock suficiente: 422</text>
+  <text x="1326" y="528" class="nt">INSUFFICIENT_STOCK. Agotado: botón</text>
+  <text x="1326" y="546" class="nt">“Producto agotado” deshabilitado.</text>
+
+  <use href="#mk" x="1304" y="590"/><text x="1304" y="595" class="mkt" text-anchor="middle">6</text>
+  <text x="1326" y="588" class="nt">Confirmación no intrusiva</text>
+  <text x="1326" y="606" class="nt">(role="status") con enlace al carrito.</text>
+
+  <rect x="1290" y="650" width="340" height="70" class="dash"/>
+  <text x="1304" y="678" class="s">Línea discontinua = zona condicional o prevista.</text>
+  <text x="1304" y="700" class="s">Barras grises = texto de relleno.</text>
+</svg>
