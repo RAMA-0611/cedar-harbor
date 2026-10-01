@@ -16,20 +16,38 @@ Inventario
 
 ## Application layers
 
-Frontend:
-Next.js / React / TypeScript
+Prototipo E2 (implementado):
+HTML / CSS / JavaScript estático y navegable en `web/`, con datos
+sintéticos locales. Publicado en GitHub Pages.
+
+Frontend previsto del producto:
+Next.js / React / TypeScript. Planificado; todavía no incorporado
+(`frontend/` está vacío).
 
 Backend:
-Laravel / PHP
+Laravel / PHP. Actualmente es un skeleton de Laravel 12, sin lógica
+del dominio.
 
 Persistence:
-MySQL
+PostgreSQL.
+
+- PostgreSQL es la decisión arquitectónica elegida
+  (`docs/decisiones.md`, ADR-E2-001).
+- El modelo está documentado en `docs/modelo-datos.md` y
+  `docs/architecture/DATA_MODEL.md`.
+- El skeleton Laravel todavía no contiene migraciones del dominio.
+- La implementación efectiva de la persistencia corresponde a una
+  entrega posterior; no hay una base PostgreSQL desplegada.
+
+API contract:
+OpenAPI 3.1 en `api/openapi.yaml`, validado y probado con mock (Prism).
 
 Authentication:
-Laravel Sanctum
+Laravel Sanctum. Previsto; no instalado todavía.
 
 Quality:
-OpenAPI + Playwright
+OpenAPI + Playwright. El contrato está validado; las pruebas E2E con
+Playwright están previstas.
 
 ## Architectural principles
 

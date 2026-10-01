@@ -1,8 +1,22 @@
 # Proyecto Rotor
 
+Prototipo transaccional de comercio electrónico para inventario industrial.
+
+**Prototipo E2:** https://rama-0611.github.io/cedar-harbor/web/
+
+**Código fuente:** https://github.com/RAMA-0611/cedar-harbor
+
 **Proyecto Rotor** es una iniciativa de software impulsada por el equipo **ByteBlade** para construir un flujo transaccional de comercio electrónico orientado a entornos industriales.
 
 El repositorio contiene el trabajo colaborativo del proyecto. La organización aliada del sector industrial, ubicada en Casanare (Colombia), no se identifica públicamente por confidencialidad.
+
+| Dato académico | Valor |
+|---|---|
+| Ruta | F — Comercio electrónico y pasarelas de pago |
+| Equipo | ByteBlade |
+| Grupo | 2 |
+| Curso | Tecnologías Web |
+| Periodo | 2026-B |
 
 ---
 
@@ -20,7 +34,7 @@ Una organización del sector industrial administra un volumen importante de mate
 
 Parte de dicho inventario tiene valor comercial y puede publicarse mediante un catálogo web. Sin un flujo transaccional completo, la publicación comercial queda limitada a la consulta o a la solicitud de cotización, sin cerrar de forma confiable la cadena:
 
-**inventario → intención de compra → pago → confirmación → conciliación**
+**inventario → publicación → intención de compra → compra → pago → conciliación**
 
 Proyecto Rotor aborda esa brecha.
 
@@ -43,6 +57,29 @@ Inventario
 ```
 
 El sistema debe mantener consistencia entre stock, orden y estado del pago, con validaciones, reservas temporales e idempotencia en los puntos críticos.
+
+---
+
+## Project status
+
+Estado al cierre de la Entrega 2:
+
+| Componente | Estado |
+|---|---|
+| Prototipo HTML/CSS/JS (`web/`) | COMPLETADO para E2 |
+| Catálogo (búsqueda, filtros, orden) | COMPLETADO en prototipo |
+| Detalle de producto | COMPLETADO en prototipo |
+| Carrito y checkout simulado | COMPLETADO en prototipo |
+| Estados loading / empty / error | COMPLETADO |
+| Contrato OpenAPI 3.1 (`api/openapi.yaml`) | COMPLETADO / VALIDADO |
+| Mock del contrato con Prism | VALIDADO |
+| Modelo de datos PostgreSQL | DOCUMENTADO |
+| Backend Laravel (`backend/`) | SKELETON INICIAL |
+| Persistencia del dominio | NO IMPLEMENTADA TODAVÍA |
+| Frontend Next.js (`frontend/`) | PLANIFICADO / NO INCORPORADO TODAVÍA |
+| Pasarela sandbox real | NO IMPLEMENTADA TODAVÍA |
+
+El prototipo usa 12 productos sintéticos locales (`web/datos/ejemplo.json`), guarda el carrito en el navegador y simula el pago. No se conecta todavía con la API.
 
 ---
 
@@ -99,10 +136,43 @@ Vista conceptual (no representa topología de servidores reales):
                                    └────────────────────┘
 ```
 
-- **Backend API:** Laravel (PHP) — dominio, persistencia, pagos sandbox, webhooks.
-- **Frontend:** Next.js / React — catálogo, carrito, checkout y experiencia de usuario.
-- **Base de datos:** MySQL.
-- **Autenticación API:** Laravel Sanctum.
+- **Backend API:** Laravel (PHP) — dominio, persistencia, pagos sandbox, webhooks. Hoy es un skeleton sin lógica del dominio.
+- **Frontend:** Next.js / React — catálogo, carrito, checkout y experiencia de usuario. Planificado; la Entrega 2 usa el prototipo estático de `web/`.
+- **Base de datos:** PostgreSQL, motor elegido para la arquitectura (ver `docs/decisiones.md`). La persistencia del dominio todavía no está implementada.
+- **Autenticación API:** Laravel Sanctum (prevista).
+
+Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
+---
+
+## Technology stack
+
+### Entrega 2 (implementado o usado)
+
+| Tecnología | Uso |
+|---|---|
+| HTML5, CSS3, JavaScript | Prototipo navegable y accesible (`web/`) |
+| OpenAPI 3.1 | Contrato de la API (`api/openapi.yaml`) |
+| Prism | Servidor mock del contrato |
+| Redocly CLI, Spectral | Validación del contrato |
+| PostgreSQL (diseño) | Modelo de datos documentado; sin base desplegada |
+| Laravel 12 (skeleton) | Base del backend, sin migraciones del dominio |
+| GitHub Pages | Publicación del prototipo |
+
+### Arquitectura objetivo (planificada)
+
+| Tecnología | Uso |
+|---|---|
+| Laravel 12 | Framework API / dominio |
+| PostgreSQL | Persistencia transaccional |
+| Next.js 16 | Aplicación web |
+| React 19 | UI |
+| TypeScript | Tipado estático |
+| Tailwind CSS | Estilos |
+| Laravel Sanctum | Autenticación API / sesión |
+| Playwright | Pruebas E2E |
+
+Next.js, Sanctum y Playwright todavía no están incorporados al repositorio.
 
 ---
 
@@ -141,95 +211,115 @@ Este repositorio **no** incluye:
 
 ---
 
-## Technology stack
-
-### Backend
-
-| Tecnología | Uso |
-|------------|-----|
-| PHP 8.2+ | Runtime |
-| Laravel 12 | Framework API / dominio |
-| MySQL | Persistencia |
-| Laravel Sanctum | Autenticación API / sesión |
-
-### Frontend
-
-| Tecnología | Uso |
-|------------|-----|
-| Next.js 16 | Aplicación web |
-| React 19 | UI |
-| TypeScript | Tipado estático |
-| Tailwind CSS | Estilos |
-| Zustand | Estado cliente |
-| Zod | Validación de esquemas |
-
-### Quality
-
-| Herramienta | Uso |
-|-------------|-----|
-| OpenAPI | Contrato de API |
-| Playwright | Pruebas E2E |
-| GitHub Pull Requests | Revisión colaborativa |
-| Pruebas automatizadas | Regresión y aceptación |
-
----
-
 ## Repository structure
 
-Estructura prevista (se irá materializando conforme avance el proyecto):
+Estructura actual:
 
 ```text
 .
 ├── README.md
 ├── LICENSE
-├── api/              # Contrato OpenAPI 3.1 (openapi.yaml)
-├── backend/          # API Laravel
-├── frontend/         # Aplicación Next.js
-├── docs/             # Documentación técnica
-└── tests/            # Suites E2E / integración (según se definan)
+├── .gitignore
+├── .env.example            # Configuración de referencia, sin secretos
+├── api/
+│   └── openapi.yaml        # Contrato OpenAPI 3.1
+├── backend/                # Skeleton Laravel 12
+├── frontend/               # Reservado para la aplicación Next.js (vacío)
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── architecture/
+│   │   └── DATA_MODEL.md   # Modelo técnico completo
+│   ├── modelo-datos.md     # Modelo de datos de la Entrega 2
+│   ├── modelo-datos.mmd    # Fuente Mermaid del diagrama
+│   ├── modelo-datos.png    # Diagrama entidad-relación
+│   ├── decisiones.md       # Decisiones de arquitectura (ADR-E2)
+│   ├── evidence/           # Evidencias de validación
+│   └── wireframes/         # Catálogo, detalle y checkout
+├── tests/                  # Reservado para pruebas E2E
+└── web/                    # Prototipo de la Entrega 2
+    ├── index.html          # Catálogo
+    ├── detalle.html        # Detalle de producto
+    ├── checkout.html       # Carrito y checkout
+    ├── css/
+    ├── js/
+    └── datos/              # 12 productos sintéticos
 ```
-
-Mientras el repositorio esté en fase inicial, pueden existir solo los archivos de presentación y licencia.
 
 ---
 
 ## Local setup
 
-Los pasos concretos de instalación se documentarán cuando el código base esté presente en el repositorio.
+Para probar la Entrega 2 **no se necesita** el backend Laravel ni una base de datos.
 
-Orientación general prevista:
+Versiones con las que se verificaron estos pasos: Python 3.12.10, Node.js 22.23.2 y npm 10.9.8 (Git 2.51 en Windows). El skeleton del backend declara PHP `^8.2` y Laravel `^12.0`; en el equipo de verificación estaban PHP 8.2.12 y Composer 2.8.12, pero no se requieren para el prototipo.
 
-1. Clonar este repositorio.
-2. Configurar backend (PHP/Composer, Laravel, MySQL).
-3. Configurar frontend (Node.js, npm, Next.js).
-4. Completar variables de entorno con valores **locales / sandbox**.
-5. Ejecutar migraciones y seeds **sintéticos** (nunca datos productivos).
-6. Arrancar API y frontend en desarrollo.
-7. Ejecutar la suite de pruebas automatizadas.
+### Prototipo
+
+Requiere Python 3.
+
+```bash
+git clone https://github.com/RAMA-0611/cedar-harbor.git
+cd cedar-harbor/web
+python -m http.server 8091 --bind 127.0.0.1
+```
+
+En Windows, `cd cedar-harbor\web`.
+
+Abrir http://127.0.0.1:8091/.
+
+Estados de demostración (también enlazados en el pie de página):
+
+| Estado | URL |
+|---|---|
+| Carga | http://127.0.0.1:8091/?state=loading |
+| Sin resultados | http://127.0.0.1:8091/?state=empty |
+| Error | http://127.0.0.1:8091/?state=error |
+
+El parámetro `?state=` funciona también en `detalle.html` y `checkout.html`.
+
+### Mock de la API
+
+Requiere Node.js y npm. Desde la raíz del repositorio:
+
+```bash
+npx --yes @stoplight/prism-cli@5.16.0 mock api/openapi.yaml -p 4010
+```
+
+Ejemplo: http://127.0.0.1:4010/api/products. Los endpoints protegidos exigen la cookie de sesión `rotor_session` (el mock valida su presencia, no su valor).
 
 > No uses credenciales, dumps ni secretos de entornos reales.
 
 ---
 
+## API contract and validation
+
+- Contrato: [`api/openapi.yaml`](./api/openapi.yaml) — OpenAPI 3.1.0, 7 grupos, 14 operaciones y 27 schemas.
+- Evidencia: [`docs/evidence/e2-api-validation.md`](./docs/evidence/e2-api-validation.md) y captura [`docs/evidence/openapi-validation.png`](./docs/evidence/openapi-validation.png).
+
+| Herramienta | Versión | Resultado |
+|---|---|---|
+| Redocly CLI | 2.57.0 | Válido, 0 errores |
+| Spectral CLI | 6.16.3 | 0 errores, 0 warnings, 0 hints |
+| Prism | 5.16.0 | Mock operativo |
+
+Evidencias de accesibilidad del prototipo: [`docs/evidence/e2-lighthouse.md`](./docs/evidence/e2-lighthouse.md).
+
+---
+
+## Data model
+
+- Modelo de la Entrega 2: [`docs/modelo-datos.md`](./docs/modelo-datos.md) y diagrama [`docs/modelo-datos.png`](./docs/modelo-datos.png).
+- Decisiones: [`docs/decisiones.md`](./docs/decisiones.md).
+
+PostgreSQL es el motor elegido para la arquitectura. El modelo está documentado (entidades, claves, restricciones, índices y cardinalidades), pero la persistencia del dominio todavía **no** está implementada: el skeleton Laravel no contiene migraciones del dominio y no hay una base de datos desplegada.
+
+---
+
 ## Environment variables
 
-Usa **únicamente placeholders**. Nunca commits con valores reales.
+[`.env.example`](./.env.example) contiene una configuración de referencia con placeholders (PostgreSQL local y pasarela sandbox sin claves). `backend/.env.example` es la plantilla propia del skeleton Laravel.
 
-```env
-APP_URL=
-API_URL=
-DB_HOST=
-DB_DATABASE=
-DB_USERNAME=
-DB_PASSWORD=
-SANCTUM_STATEFUL_DOMAINS=
-PAYMENT_PROVIDER=
-PAYMENT_PUBLIC_KEY=
-PAYMENT_SECRET_KEY=
-PAYMENT_WEBHOOK_SECRET=
-```
-
-Cualquier archivo `.env` real debe permanecer fuera del control de versiones.
+Usa **únicamente placeholders**. Nunca commits con valores reales. Cualquier archivo `.env` real debe permanecer fuera del control de versiones.
 
 ---
 
@@ -257,28 +347,20 @@ Additionally (project policy):
 
 ---
 
-## Project status
+## Team — ByteBlade
 
-| Aspecto | Estado |
-|---------|--------|
-| Identidad pública y licencia | En curso (este repositorio) |
-| Código de aplicación | Pendiente de incorporación en este repositorio |
-| Flujo transaccional completo | Previsto |
-| Pasarela | Solo sandbox (previsto) |
-| OpenAPI + E2E | Previsto |
-
-El estado se actualizará a medida que se fusionen pull requests.
+| Persona | Rol | GitHub |
+|---|---|---|
+| Sebastián David Tojuelo Perilla | Líder técnico | [@SFrost156](https://github.com/SFrost156) |
+| Harold Steven Alfonso Pérez | Backend y datos | [@Harold-Alfonso](https://github.com/Harold-Alfonso) |
+| Johan David Rodríguez Pérez | Frontend y experiencia | [@johanrodriguezes-ui](https://github.com/johanrodriguezes-ui) |
+| Raúl Alejandro Mogollón Acosta | DevOps y calidad | [@RAMA-0611](https://github.com/RAMA-0611) |
 
 ---
 
-## Team — ByteBlade
+## Uso de inteligencia artificial
 
-| Persona | Rol |
-|---------|-----|
-| Sebastián David Tojuelo Perilla | Líder técnico |
-| Harold Steven Alfonso Pérez | Backend y datos |
-| Johan David Rodríguez Pérez | Frontend y experiencia |
-| Raúl Alejandro Mogollón Acosta | DevOps y calidad |
+Durante el desarrollo se utilizaron herramientas de inteligencia artificial como apoyo para revisión técnica, análisis, documentación, validación y asistencia de programación. Las decisiones arquitectónicas, las pruebas, las revisiones de pull requests y la aceptación final fueron verificadas por los integrantes del equipo. No se delegó a la IA la responsabilidad académica del contenido entregado.
 
 ---
 
@@ -299,10 +381,4 @@ This repository is publicly accessible for transparency, educational review and 
 
 Unless expressly authorized in writing, reproduction, modification, distribution, commercial use, deployment or incorporation of this software into another product is not permitted.
 
-See [LICENSE](./LICENSE) for the complete terms.
-
----
-
-## License
-
-See the [LICENSE](./LICENSE) file. **All Rights Reserved.**
+See [LICENSE](./LICENSE) for the complete terms. **All Rights Reserved.**
