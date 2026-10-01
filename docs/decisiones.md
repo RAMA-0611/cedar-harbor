@@ -50,7 +50,10 @@ transaccional. El detalle técnico está en `docs/architecture/DATA_MODEL.md`
   compra.
 - **Decisión.** `order_items` guarda una copia de SKU, nombre, precio
   unitario, tasa e importes en el momento de crear la orden. La orden copia
-  también los datos del comprador.
+  también los datos del comprador y la dirección de entrega
+  (`delivery_address`), que solo aplica a `COORDINATED_SHIPPING`: es
+  obligatoria con envío coordinado y NULL con retiro en sede (CHECK de
+  modalidad). No hay tabla de direcciones ni FK.
 - **Consecuencia.** La orden es auditable aunque el catálogo cambie. El
   carrito, en cambio, usa el precio vigente y el cambio se detecta en el
   checkout (`PRICE_CHANGED`).

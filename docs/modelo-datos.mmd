@@ -53,6 +53,8 @@ erDiagram
     uuid customer_id FK "nullable (invitado)"
     varchar status "DRAFT por defecto"
     char currency "ISO-4217"
+    varchar delivery_mode "PICKUP o COORDINATED_SHIPPING"
+    varchar delivery_address "snapshot, NULL con PICKUP"
     decimal total "DECIMAL(18,2)"
     varchar idempotency_key UK
   }

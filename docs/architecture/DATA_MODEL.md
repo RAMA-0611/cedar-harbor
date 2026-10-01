@@ -310,6 +310,7 @@ Jobs de expiración: fuera de alcance de este documento.
 | customer_document_type | string | No | | Snapshot comprador |
 | customer_document_number | string | No | | Snapshot comprador |
 | delivery_mode | string enum | No | PICKUP \| COORDINATED_SHIPPING | Modalidad |
+| delivery_address | VARCHAR(255) | Sí | CHECK de modalidad (ver abajo) | Snapshot de la dirección de envío |
 | subtotal | DECIMAL(18,2) | No | ≥ 0 | Subtotal |
 | tax_total | DECIMAL(18,2) | No | ≥ 0 | Impuestos |
 | total | DECIMAL(18,2) | No | ≥ 0 | Total |
@@ -322,6 +323,33 @@ Jobs de expiración: fuera de alcance de este documento.
 | expired_at | datetime | Sí | | Momento EXPIRED |
 | created_at | datetime | No | | Alta |
 | updated_at | datetime | No | | Última actualización |
+
+### Delivery address (snapshot)
+
+`delivery_address` guarda la dirección usada **para esa orden concreta**
+(`DeliveryData.address` del contrato). Es un snapshot como los datos del
+comprador: no depende de que el cliente cambie después sus datos. No es FK
+y no existe tabla `addresses`.
+
+Es nullable en la estructura física porque `PICKUP` no necesita dirección.
+Regla de dominio:
+
+| delivery_mode | delivery_address |
+|---------------|------------------|
+| `PICKUP` | Debe ser `NULL` |
+| `COORDINATED_SHIPPING` | Obligatoria, no vacía |
+
+Restricción conceptual (no se ejecuta migración todavía):
+
+```text
+CHECK (
+  (delivery_mode = 'PICKUP' AND delivery_address IS NULL)
+  OR
+  (delivery_mode = 'COORDINATED_SHIPPING'
+   AND delivery_address IS NOT NULL
+   AND btrim(delivery_address) <> '')
+)
+```
 
 ### Money / currency
 
@@ -663,6 +691,8 @@ erDiagram
     uuid customer_id FK
     string status
     string currency
+    string delivery_mode
+    string delivery_address
     string idempotency_key UK
     string idempotency_request_hash
   }
@@ -719,6 +749,7 @@ Cardinalidades:
 | PaymentProvider | WOMPI, MERCADOPAGO | Igual | Sí |
 | Idempotency-Key | header obligatorio | `idempotency_key` + hash | Sí |
 | Customer snapshot | CustomerData en Order | columnas snapshot | Sí |
+| Delivery address | `DeliveryData.address` (obligatoria con COORDINATED_SHIPPING; omitida o null con PICKUP) | `orders.delivery_address` snapshot + CHECK de modalidad | Sí |
 | Order items snapshot | sku, name, prices | `order_items` | Sí |
 | Payment attempts | payment-intent por orden | 1→N `payments` | Sí |
 | Webhook ids | X-Webhook-Id / event_id | `external_event_id` UNIQUE | Sí |

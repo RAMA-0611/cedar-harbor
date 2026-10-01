@@ -170,6 +170,7 @@ una conciliación simultánea.
 | customer_document_type | VARCHAR(10) | No | Sin valor por defecto | — | Snapshot del comprador |
 | customer_document_number | VARCHAR(30) | No | Sin valor por defecto | — | Snapshot del comprador |
 | delivery_mode | VARCHAR(30) | No | Sin valor por defecto | CHECK IN (`PICKUP`, `COORDINATED_SHIPPING`) | Modalidad de entrega |
+| delivery_address | VARCHAR(255) | Sí | NULL | CHECK de modalidad (ver abajo) | Snapshot de la dirección de envío; NULL con `PICKUP` |
 | subtotal | DECIMAL(18,2) | No | Sin valor por defecto | CHECK (`>= 0`) | Suma de subtotales de línea |
 | tax_total | DECIMAL(18,2) | No | Sin valor por defecto | CHECK (`>= 0`) | Suma de impuestos de línea |
 | total | DECIMAL(18,2) | No | Sin valor por defecto | CHECK (`>= 0`) | Total a pagar |
@@ -177,6 +178,23 @@ una conciliación simultánea.
 | idempotency_request_hash | VARCHAR(128) | No | Sin valor por defecto | — | Huella canónica de la solicitud |
 | paid_at / fulfilled_at / cancelled_at / failed_at / expired_at | TIMESTAMPTZ | Sí | NULL | — | Auditoría de cada transición |
 | created_at / updated_at | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | — | Campos de control |
+
+**Dirección de entrega.** `delivery_address` es el snapshot de la dirección
+usada para esa orden (`DeliveryData.address` del contrato): no depende de
+que el cliente cambie después sus datos, no es FK y no existe tabla de
+direcciones. Es nullable porque el retiro en sede no la necesita. Regla:
+con `PICKUP` debe ser NULL; con `COORDINATED_SHIPPING` es obligatoria y no
+vacía. Restricción conceptual (sin migración todavía):
+
+```text
+CHECK (
+  (delivery_mode = 'PICKUP' AND delivery_address IS NULL)
+  OR
+  (delivery_mode = 'COORDINATED_SHIPPING'
+   AND delivery_address IS NOT NULL
+   AND btrim(delivery_address) <> '')
+)
+```
 
 Transiciones permitidas: `DRAFT → PENDING_PAYMENT | CANCELLED`;
 `PENDING_PAYMENT → PAID | FAILED | EXPIRED | CANCELLED`; `PAID → FULFILLED`.
@@ -371,6 +389,7 @@ Comparación contra `api/openapi.yaml` de la rama `docs/e2-api-contract`.
 | PaymentProvider | `WOMPI`, `MERCADOPAGO` | `payments.provider`, `webhook_events.provider` | COHERENTE |
 | CustomerData | `name`, `email`, `phone`, `document_type`, `document_number` | Columnas `customer_*` de `orders` (snapshot) y tabla `customers` | COHERENTE |
 | DeliveryData | `mode`: `PICKUP` o `COORDINATED_SHIPPING` | `orders.delivery_mode` con los mismos valores | COHERENTE |
+| Dirección de entrega | `DeliveryData.address`: obligatoria y no vacía con `COORDINATED_SHIPPING`; omitida o null con `PICKUP` (`if`/`then`/`else`); máximo 255 | `orders.delivery_address` `VARCHAR(255)`, snapshot, con la CHECK de modalidad | COHERENTE |
 | Cart | `id`, `items`, `subtotal`, `tax_total`, `total`, `currency`, `expires_at` | `carts` (`id`, `currency`, `expires_at`); totales calculados con el precio vigente | COHERENTE (totales calculados, no guardados) |
 | CartItem | `id`, `product_id`, `sku`, `name`, `quantity`, `unit_price`, `tax_amount`, `line_total`, `available_quantity` | `cart_items` (`id`, `product_id`, `quantity`); el resto se obtiene del catálogo | COHERENTE (precio vigente, no snapshot) |
 | Order | `id`, `order_number`, `status`, `currency`, totales, `customer`, `delivery`, `items`, `created_at`, `updated_at` | `orders` con los mismos datos; `customer` y `delivery` aplanados | COHERENTE |
@@ -411,22 +430,25 @@ Revisión de solo lectura de `web/` en la rama `feat/e2-prototype-ui`.
 | Comprador: nombre, tipo y número de documento, correo, teléfono | `CustomerData` → columnas `customer_*` | Sí |
 | Tipos de documento CC, CE, NIT, PAS | `document_type` como código | Sí |
 | Modalidad: retiro en sede / envío coordinado | `DeliveryData.mode`: `PICKUP` / `COORDINATED_SHIPPING` → `delivery_mode` | Sí |
-| Dirección de entrega (solo con envío) | No existe en `DeliveryData` ni en `orders` | **No** — ver discrepancia |
+| Dirección de entrega (obligatoria con envío, mínimo 8 caracteres) | `DeliveryData.address` → `orders.delivery_address` (snapshot); obligatoria con `COORDINATED_SHIPPING`, NULL con `PICKUP` | Sí — COHERENTE |
 | Subtotal | `subtotal` (suma de líneas) | Sí |
 | IVA 19 % | `tax_total` = suma de `tax_amount` por línea | Parcial — ver observación |
 | Total | `total` = `subtotal` + `tax_total` | Sí |
 | Categoría, marca, condición, unidad de venta, descripción | Datos del dominio externo de producto; no están en `ProductSummary` | Parcial — ver observación |
 | Pago sandbox y confirmación simulada | `PaymentIntent` y `redirect_url`; el redirect no confirma el pago | Sí (la UI aclara que es demostración) |
 
-**Discrepancia (no bloqueante): dirección de entrega.** El checkout del
-prototipo pide una dirección cuando se elige envío coordinado, pero el
-contrato (`DeliveryData` solo tiene `mode`) y el modelo (`orders` solo tiene
-`delivery_mode`) no la contemplan. La modalidad en sí es coherente. El
-equipo debe decidir entre quitar el campo de la UI, si el envío se coordina
-por teléfono como indica el propio texto de la opción, o ampliar contrato y
-modelo en una revisión posterior. No se modifica el contrato en esta tarea.
+**Dirección de entrega: COHERENTE.** Decisión del equipo: la UI conserva el
+campo, obligatorio solo con envío coordinado. El contrato lo expresa en
+`DeliveryData.address` y el modelo lo guarda como snapshot en
+`orders.delivery_address`. El mínimo de la UI (8 caracteres) es más estricto
+que el del contrato (5), así que todo valor aceptado por la UI es válido
+para la API.
 
 **Observaciones (no bloqueantes):**
+
+- Para el frontend definitivo: limitar el campo de dirección a 255
+  caracteres (el prototipo no fija máximo) y no enviar `address` con
+  `PICKUP`, aunque el usuario la haya escrito antes de cambiar de modalidad.
 
 - La UI calcula el IVA sobre el subtotal con una tasa global; el modelo lo
   calcula por línea (`tax_amount`) y lo suma. Con una sola tasa el resultado
