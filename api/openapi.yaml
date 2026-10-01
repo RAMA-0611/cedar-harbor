@@ -421,7 +421,8 @@ paths:
         - reservations still valid;
         - prices still match catalog snapshot expectations;
         - basic customer data;
-        - delivery mode (PICKUP or COORDINATED_SHIPPING).
+        - delivery mode (PICKUP or COORDINATED_SHIPPING) and, for
+          COORDINATED_SHIPPING, a non-blank delivery address.
 
         Does not model carriers or complex logistics.
         Constraint failures such as `CART_EMPTY`, `INSUFFICIENT_STOCK`,
@@ -446,6 +447,17 @@ paths:
                     document_number: "1000000000"
                   delivery:
                     mode: PICKUP
+              coordinatedShipping:
+                value:
+                  customer:
+                    name: "Cliente Demo Rotor"
+                    email: "cliente.demo@example.test"
+                    phone: "+570000000000"
+                    document_type: "CC"
+                    document_number: "1000000000"
+                  delivery:
+                    mode: COORDINATED_SHIPPING
+                    address: "Calle Demo 12 # 34-56, Ciudad Rotor"
       responses:
         "200":
           description: Validation result (may be valid or invalid with errors).
@@ -541,6 +553,14 @@ paths:
                         customer.email: ["must be a valid email address"]
                         customer.document_number: ["is required"]
                     trace_id: "trace-synth-0010"
+                missingDeliveryAddress:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Validation failed.
+                    details:
+                      fields:
+                        delivery.address: ["is required for coordinated shipping"]
+                    trace_id: "trace-synth-0015"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -583,6 +603,7 @@ paths:
                     document_number: "1000000000"
                   delivery:
                     mode: COORDINATED_SHIPPING
+                    address: "Calle Demo 12 # 34-56, Ciudad Rotor"
       responses:
         "201":
           description: Order created.
@@ -646,6 +667,14 @@ paths:
                     message: Cart has no items.
                     details: {}
                     trace_id: "trace-synth-0011"
+                missingDeliveryAddress:
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Validation failed.
+                    details:
+                      fields:
+                        delivery.address: ["is required for coordinated shipping"]
+                    trace_id: "trace-synth-0016"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1245,6 +1274,7 @@ components:
           document_number: "1000000000"
         delivery:
           mode: COORDINATED_SHIPPING
+          address: "Calle Demo 12 # 34-56, Ciudad Rotor"
         items:
           - id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
             product_id: "11111111-1111-4111-8111-111111111111"
@@ -1274,6 +1304,7 @@ components:
           document_number: "1000000000"
         delivery:
           mode: COORDINATED_SHIPPING
+          address: "Calle Demo 12 # 34-56, Ciudad Rotor"
         items:
           - id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
             product_id: "11111111-1111-4111-8111-111111111111"
@@ -1586,6 +1617,11 @@ components:
       type: object
       required: [mode]
       additionalProperties: false
+      description: |
+        Delivery modality and, for coordinated shipping, the delivery address.
+        The address is stored as a snapshot of the order. Rules:
+        COORDINATED_SHIPPING → `address` is required and must not be blank;
+        PICKUP → `address` is not needed and must be omitted or null.
       properties:
         mode:
           type: string
@@ -1593,6 +1629,34 @@ components:
           enum:
             - PICKUP
             - COORDINATED_SHIPPING
+        address:
+          type: ["string", "null"]
+          minLength: 5
+          maxLength: 255
+          pattern: "\\S"
+          description: |
+            Delivery address for coordinated shipping (synthetic in examples).
+            Required when `mode` is COORDINATED_SHIPPING; omitted or null for PICKUP.
+          examples:
+            - "Calle Demo 12 # 34-56, Ciudad Rotor"
+      if:
+        required: [mode]
+        properties:
+          mode:
+            const: COORDINATED_SHIPPING
+      then:
+        required: [address]
+        properties:
+          mode:
+            const: COORDINATED_SHIPPING
+          address:
+            type: string
+      else:
+        properties:
+          mode:
+            const: PICKUP
+          address:
+            type: "null"
 
     CheckoutRequest:
       type: object

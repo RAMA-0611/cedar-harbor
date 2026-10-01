@@ -83,6 +83,80 @@ Puerto: **4010** (libre al momento de la prueba). Servidor detenido al terminar.
 - Prism devuelve ejemplos estáticos: en la prueba 7 el código (422) es correcto, pero el cuerpo es el primer ejemplo 422 declarado (`INSUFFICIENT_STOCK`), no un mensaje construido a partir de la violación.
 - Las respuestas que no se derivan de una violación del request (404, 409, 502) se obtienen con la cabecera `Prefer: code=<status>` o `Prefer: example=<nombre>`.
 
-## 4. Confidencialidad
+## 4. Revalidación — dirección de entrega
+
+Alineación del contrato con el checkout del prototipo y con el modelo de
+datos (`orders.delivery_address`).
+
+### Cambio en `DeliveryData`
+
+- Nueva propiedad `address`: `type: ["string", "null"]`, `minLength: 5`,
+  `maxLength: 255`, `pattern: "\S"` (no admite una cadena solo con espacios).
+- Regla condicional con `if` / `then` / `else` de JSON Schema 2020-12:
+  - `mode = COORDINATED_SHIPPING` → `address` es obligatoria y debe ser texto;
+  - `mode = PICKUP` → `address` no se exige y solo puede omitirse o ser `null`
+    (la orden no guarda dirección para retiro en sede).
+- La dirección se guarda como snapshot de la orden.
+- Ejemplos con `COORDINATED_SHIPPING` actualizados con una dirección
+  sintética (`Calle Demo 12 # 34-56, Ciudad Rotor`): solicitud de
+  `validateCheckout` (nuevo ejemplo `coordinatedShipping`), solicitud de
+  `createOrder` y los ejemplos de orden `OrderPendingPayment` y
+  `OrderCancelled`. Los ejemplos `PICKUP` no llevan dirección.
+- Nuevo ejemplo 422 `missingDeliveryAddress` en `validateCheckout` y
+  `createOrder` (`VALIDATION_ERROR`, `details.fields."delivery.address"`),
+  con la forma `ApiError` existente.
+
+### Validación estática
+
+| Herramienta | Comando | Resultado |
+|---|---|---|
+| Redocly CLI 2.57.0 | `npx --yes @redocly/cli@2.57.0 lint <repo>/api/openapi.yaml` | Válido, 0 errores, 1 warning (`no-server-example.com`, aceptado) |
+| Spectral CLI 6.16.3 | `npx --yes @stoplight/spectral-cli@6.16.3 lint <repo>/api/openapi.yaml --ruleset .spectral.yaml --fail-severity hint` | 0 errores, 0 warnings, 0 hints |
+| Revisión estructural | Script local temporal sobre el bundle desreferenciado | 14 operaciones, 27 schemas, sin hallazgos |
+
+Durante la revisión, la regla `no-invalid-media-type-examples` de Redocly
+señaló los ejemplos con `delivery` cuando las ramas `then`/`else` solo
+declaraban `address`: interpretaba `mode` como propiedad no evaluada. Se
+declaró `mode` (con `const`) en cada rama; con eso todos los ejemplos son
+válidos contra el schema.
+
+### Regla condicional verificada con Ajv
+
+Ajv 8 en modo JSON Schema 2020-12 (instalado temporalmente fuera del
+repositorio), compilando `DeliveryData` del bundle:
+
+| Caso | Esperado | Obtenido |
+|---|---|---|
+| PICKUP sin `address` | válido | válido |
+| PICKUP con `address: null` | válido | válido |
+| PICKUP con dirección | inválido | inválido |
+| COORDINATED_SHIPPING con dirección | válido | válido |
+| COORDINATED_SHIPPING sin `address` | inválido | inválido |
+| COORDINATED_SHIPPING con `address: null` | inválido | inválido |
+| COORDINATED_SHIPPING con dirección en blanco | inválido | inválido |
+| COORDINATED_SHIPPING con dirección de 3 caracteres | inválido | inválido |
+
+### Mock server
+
+Mismo comando y puerto que en la sección 3 (Prism 5.16.0, puerto 4010,
+detenido al terminar). Peticiones con `Cookie: rotor_session=demo` y datos de
+comprador sintéticos válidos.
+
+| Petición | Esperado | Obtenido |
+|---|---|---|
+| `POST /api/checkout/validate`, PICKUP sin `address` | 200, `CheckoutValidation` | 200 |
+| `POST /api/checkout/validate`, COORDINATED_SHIPPING con dirección | 200, `CheckoutValidation` | 200 |
+| `POST /api/checkout/validate`, COORDINATED_SHIPPING sin `address` | 422 | 422 (Prism: `must have required property 'address'`) |
+| `POST /api/checkout/validate`, PICKUP con dirección | 422 | 422 (Prism: `delivery.address must be null`) |
+| `POST /api/checkout/validate`, COORDINATED_SHIPPING con dirección en blanco | 422 | 422 (Prism: `delivery.address must match pattern "\S"`) |
+| `POST /api/orders` con `Idempotency-Key`, COORDINATED_SHIPPING con dirección | 201, `Order` | 201, `delivery` con `mode` y `address` |
+
+Limitación del mock: Prism aplica la regla condicional y responde 422 en los
+tres casos inválidos, pero el cuerpo es siempre el primer ejemplo 422
+declarado (`invalidCustomer`); con un request inválido ignora
+`Prefer: example=missingDeliveryAddress`. El mensaje específico por campo lo
+construirá el backend.
+
+## 5. Confidencialidad
 
 Se buscaron en `api/` y en este documento los términos de la lista de exclusión del proyecto (nombres empresariales, dominios internos, rangos IP privados, rutas de servidor y de estación de trabajo). Resultado: **0 coincidencias**.
