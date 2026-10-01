@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detalle de producto · Proyecto Rotor</title>
+  <meta name="description" content="Ficha de producto del prototipo de Proyecto Rotor con datos sintéticos.">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="detalle">
+  <header class="encabezado">
+    <div class="contenedor encabezado__interior">
+      <a class="marca" href="index.html">
+        <span class="marca__logo" aria-hidden="true">R</span>
+        <span class="marca__nombre">Proyecto Rotor</span>
+      </a>
+      <nav aria-label="Principal">
+        <ul class="nav-principal">
+          <li><a href="index.html">Catálogo</a></li>
+          <li><a href="checkout.html">Carrito <span class="contador" data-cart-count>0</span><span class="sr-only"> productos</span></a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="contenedor pagina">
+    <nav class="migas" aria-label="Ruta de navegación">
+      <ol>
+        <li><a href="index.html">Catálogo</a></li>
+        <li><span id="miga-categoria">Producto</span></li>
+        <li aria-current="page" id="miga-producto">Detalle</li>
+      </ol>
+    </nav>
+
+    <div id="estado"></div>
+
+    <article id="ficha" class="ficha" hidden>
+      <div class="ficha__imagen" id="ficha-imagen"></div>
+
+      <div class="ficha__info">
+        <ul class="pildoras" id="ficha-pildoras" aria-label="Características"></ul>
+        <h1 id="ficha-nombre"></h1>
+        <p class="ficha__descripcion" id="ficha-descripcion"></p>
+
+        <dl class="ficha__datos">
+          <div><dt>SKU</dt><dd id="ficha-sku"></dd></div>
+          <div><dt>Categoría</dt><dd id="ficha-categoria"></dd></div>
+          <div><dt>Condición</dt><dd id="ficha-condicion"></dd></div>
+          <div><dt>Marca</dt><dd id="ficha-marca"></dd></div>
+          <div><dt>Unidad de venta</dt><dd id="ficha-unidad"></dd></div>
+        </dl>
+
+        <div class="ficha__compra">
+          <p class="ficha__precio"><span id="ficha-precio"></span> <small>+ IVA por <span id="ficha-precio-unidad"></span></small></p>
+          <div id="ficha-stock"></div>
+
+          <form id="form-agregar" class="form-cantidad" novalidate>
+            <div class="campo">
+              <label for="cantidad">Cantidad</label>
+              <div class="selector-cantidad">
+                <button type="button" class="boton boton--secundario selector-cantidad__boton" data-paso="-1" aria-label="Disminuir cantidad">−</button>
+                <input id="cantidad" name="cantidad" type="number" inputmode="numeric" min="1" step="1" value="1" aria-describedby="cantidad-ayuda cantidad-error">
+                <button type="button" class="boton boton--secundario selector-cantidad__boton" data-paso="1" aria-label="Aumentar cantidad">+</button>
+              </div>
+              <p id="cantidad-ayuda" class="ayuda"></p>
+              <p id="cantidad-error" class="error-campo" aria-live="polite"></p>
+            </div>
+            <button type="submit" class="boton boton--primario boton--ancho" id="boton-agregar">Agregar al carrito</button>
+          </form>
+
+          <div id="confirmacion-agregar" class="aviso aviso--exito" role="status" hidden></div>
+        </div>
+
+        <a class="enlace-volver" href="index.html">← Volver al catálogo</a>
+      </div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p><strong>Proyecto Rotor</strong> · Prototipo académico de la Entrega 2. Todos los productos, precios y existencias son datos sintéticos.</p>
+      <nav aria-label="Pie de página">
+        <ul class="pie__enlaces">
+          <li><a href="index.html">Catálogo</a></li>
+          <li><a href="checkout.html">Carrito y checkout</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
