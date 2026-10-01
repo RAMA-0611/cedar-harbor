@@ -182,9 +182,10 @@ Estructura prevista (se irá materializando conforme avance el proyecto):
 .
 ├── README.md
 ├── LICENSE
+├── api/              # Contrato OpenAPI 3.1 (openapi.yaml)
 ├── backend/          # API Laravel
 ├── frontend/         # Aplicación Next.js
-├── docs/             # Documentación técnica y OpenAPI
+├── docs/             # Documentación técnica
 └── tests/            # Suites E2E / integración (según se definan)
 ```
 
