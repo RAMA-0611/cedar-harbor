@@ -1,0 +1,89 @@
+%% Fuente de docs/modelo-datos.png. Derivado de docs/architecture/DATA_MODEL.md §17.
+erDiagram
+  CUSTOMER o|--o{ CART : "posee: 0..1 a 0..N"
+  CUSTOMER o|--o{ ORDER : "referencia: 0..1 a 0..N"
+  CART ||--o{ CART_ITEM : "contiene: 1 a 0..N"
+  CART ||--o{ STOCK_RESERVATION : "orquesta: 1 a 0..N"
+  CART_ITEM o|--o{ STOCK_RESERVATION : "línea: 0..1 a 0..N"
+  ORDER ||--o{ ORDER_ITEM : "snapshot: 1 a 1..N por regla"
+  ORDER ||--o{ PAYMENT : "intentos: 1 a 0..N"
+  ORDER o|--o{ STOCK_RESERVATION : "retiene: 0..1 a 0..N"
+  ORDER o|--o{ WEBHOOK_EVENT : "correlaciona: 0..1 a 0..N"
+  PAYMENT o|--o{ WEBHOOK_EVENT : "correlaciona: 0..1 a 0..N"
+  CART_ITEM }o--|| PRODUCT : "referencia: 0..N a 1"
+  STOCK_RESERVATION }o--|| PRODUCT : "referencia: 0..N a 1"
+  ORDER_ITEM }o--|| PRODUCT : "referencia: 0..N a 1"
+
+  CUSTOMER["Customer (customers)"] {
+    uuid id PK
+    varchar email "índice no único"
+    varchar document_number "índice no único"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  CART["Cart (carts)"] {
+    uuid id PK
+    uuid customer_id FK "nullable (invitado)"
+    varchar status "ACTIVE por defecto"
+    char currency "ISO-4217"
+    timestamptz expires_at
+  }
+
+  CART_ITEM["CartItem (cart_items)"] {
+    uuid id PK
+    uuid cart_id FK "UNIQUE con product_id"
+    uuid product_id "ref. externa"
+    int quantity "mayor que 0"
+  }
+
+  STOCK_RESERVATION["StockReservation (stock_reservations)"] {
+    uuid id PK
+    uuid cart_id FK
+    uuid cart_item_id FK "nullable"
+    uuid order_id FK "nullable"
+    uuid product_id "ref. externa"
+    varchar status "ACTIVE por defecto"
+    timestamptz expires_at
+  }
+
+  ORDER["Order (orders)"] {
+    uuid id PK
+    varchar order_number UK
+    uuid customer_id FK "nullable (invitado)"
+    varchar status "DRAFT por defecto"
+    char currency "ISO-4217"
+    decimal total "DECIMAL(18,2)"
+    varchar idempotency_key UK
+  }
+
+  ORDER_ITEM["OrderItem (order_items)"] {
+    uuid id PK
+    uuid order_id FK
+    uuid product_id "ref. externa"
+    varchar sku "snapshot"
+    decimal unit_price "snapshot DECIMAL(18,2)"
+    decimal line_total "DECIMAL(18,2)"
+  }
+
+  PAYMENT["Payment (payments)"] {
+    uuid id PK
+    uuid order_id FK
+    varchar provider "UNIQUE con provider_reference"
+    varchar provider_reference "nullable"
+    varchar status "PENDING por defecto"
+    decimal amount "DECIMAL(18,2)"
+  }
+
+  WEBHOOK_EVENT["WebhookEvent (webhook_events)"] {
+    uuid id PK
+    varchar provider "UNIQUE con external_event_id"
+    varchar external_event_id
+    jsonb payload "sanitizado"
+    uuid order_id FK "nullable"
+    uuid payment_id FK "nullable"
+  }
+
+  PRODUCT["Product (externo)"] {
+    uuid id PK "dominio de inventario"
+  }

@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1660" height="1190" viewBox="0 0 1660 1190" role="img" aria-labelledby="titulo desc">
+  <title id="titulo">Wireframe — Catálogo · Project Rotor</title>
+  <desc id="desc">Esquema de la página de catálogo: encabezado, banner, filtros, zona de estado, grilla de productos, paginación prevista y pie, con anotaciones.</desc>
+  <style>
+    text { font-family: "Segoe UI", Arial, sans-serif; fill: #222; }
+    .ttl { font-size: 20px; font-weight: 700; }
+    .h1 { font-size: 26px; font-weight: 700; }
+    .h2 { font-size: 18px; font-weight: 700; }
+    .t { font-size: 14px; }
+    .b { font-size: 15px; font-weight: 700; }
+    .s { font-size: 12px; fill: #555; }
+    .w { fill: #fff; }
+    .frame { fill: #fff; stroke: #333; stroke-width: 2; }
+    .band { fill: #e9e9e9; stroke: #bbb; }
+    .panel { fill: #fff; stroke: #888; stroke-width: 1.5; }
+    .field { fill: #fff; stroke: #777; }
+    .ph { fill: #e6e6e6; stroke: #aaa; }
+    .phx { stroke: #bbb; }
+    .pill { fill: #eee; stroke: #999; }
+    .badge { fill: #f4f4f4; stroke: #777; }
+    .btn1 { fill: #333; }
+    .btn2 { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .dash { fill: none; stroke: #777; stroke-dasharray: 6 4; }
+    .mk { fill: #1f6feb; }
+    .mkt { font-size: 13px; font-weight: 700; fill: #fff; }
+    .nt { font-size: 13px; fill: #222; }
+  </style>
+  <defs>
+    <g id="card">
+      <rect width="280" height="320" class="panel"/>
+      <rect x="16" y="16" width="248" height="104" class="ph"/>
+      <line x1="16" y1="16" x2="264" y2="120" class="phx"/>
+      <line x1="264" y1="16" x2="16" y2="120" class="phx"/>
+      <rect x="16" y="132" width="110" height="22" rx="11" class="pill"/>
+      <text x="71" y="148" class="s" text-anchor="middle">Categoría</text>
+      <text x="16" y="180" class="b">Nombre del producto</text>
+      <text x="16" y="200" class="s">SKU: XX-XXX-0000</text>
+      <text x="16" y="228" class="b">$ 000.000 <tspan class="s">+ IVA / unidad</tspan></text>
+      <rect x="16" y="272" width="248" height="34" rx="6" class="btn2"/>
+      <text x="140" y="294" class="t" text-anchor="middle">Ver detalle</text>
+    </g>
+    <g id="mk"><circle r="13" class="mk"/></g>
+  </defs>
+
+  <text x="20" y="36" class="ttl">Wireframe — Catálogo · Project Rotor · Entrega 2 (escritorio, 1280 px)</text>
+
+  <rect x="20" y="60" width="1240" height="1100" class="frame"/>
+
+  <!-- Encabezado -->
+  <rect x="20" y="60" width="1240" height="64" class="band"/>
+  <rect x="44" y="76" width="32" height="32" rx="6" class="btn1"/>
+  <text x="60" y="98" class="b w" text-anchor="middle">R</text>
+  <text x="88" y="98" class="b">Proyecto Rotor</text>
+  <text x="1010" y="98" class="t" text-decoration="underline">Catálogo</text>
+  <rect x="1100" y="78" width="130" height="30" rx="15" class="btn2"/>
+  <text x="1165" y="98" class="t" text-anchor="middle">Carrito (2)</text>
+
+  <!-- Banner -->
+  <rect x="20" y="124" width="1240" height="110" class="band"/>
+  <text x="60" y="172" class="h1">Catálogo de componentes industriales</text>
+  <text x="60" y="202" class="t">Texto introductorio de las familias de producto</text>
+
+  <!-- Filtros -->
+  <rect x="50" y="264" width="270" height="420" class="panel"/>
+  <text x="70" y="296" class="h2">Filtrar productos</text>
+  <text x="70" y="330" class="t">Buscar por nombre o SKU</text>
+  <rect x="70" y="340" width="230" height="34" class="field"/>
+  <text x="80" y="362" class="s">Ej.: contactor o 6205</text>
+  <text x="70" y="400" class="t">Categoría</text>
+  <rect x="70" y="410" width="230" height="34" class="field"/>
+  <text x="80" y="432" class="s">Todas las categorías</text>
+  <text x="284" y="432" class="s">▾</text>
+  <text x="70" y="470" class="t">Disponibilidad</text>
+  <rect x="70" y="480" width="230" height="34" class="field"/>
+  <text x="80" y="502" class="s">Todas</text>
+  <text x="284" y="502" class="s">▾</text>
+  <text x="70" y="540" class="t">Ordenar por</text>
+  <rect x="70" y="550" width="230" height="34" class="field"/>
+  <text x="80" y="572" class="s">Relevancia</text>
+  <text x="284" y="572" class="s">▾</text>
+  <rect x="70" y="616" width="230" height="38" rx="6" class="btn2"/>
+  <text x="185" y="640" class="t" text-anchor="middle">Limpiar filtros</text>
+
+  <!-- Resultados -->
+  <text x="350" y="296" class="h2">Productos</text>
+  <text x="1230" y="296" class="s" text-anchor="end">12 productos</text>
+  <rect x="350" y="312" width="880" height="40" class="dash"/>
+  <text x="366" y="337" class="s">Zona de estado: cargando · sin resultados + “Limpiar filtros” · error + “Reintentar”</text>
+
+  <use href="#card" x="350" y="370"/>
+  <use href="#card" x="650" y="370"/>
+  <use href="#card" x="950" y="370"/>
+  <use href="#card" x="350" y="710"/>
+  <use href="#card" x="650" y="710"/>
+  <use href="#card" x="950" y="710"/>
+
+  <rect x="366" y="608" width="130" height="22" rx="11" class="badge"/>
+  <text x="431" y="624" class="s" text-anchor="middle">● Disponible</text>
+  <rect x="666" y="608" width="130" height="22" rx="11" class="badge"/>
+  <text x="731" y="624" class="s" text-anchor="middle">◐ Pocas unidades</text>
+  <rect x="966" y="608" width="130" height="22" rx="11" class="badge"/>
+  <text x="1031" y="624" class="s" text-anchor="middle">● Disponible</text>
+  <rect x="366" y="948" width="130" height="22" rx="11" class="badge"/>
+  <text x="431" y="964" class="s" text-anchor="middle">○ Agotado</text>
+  <rect x="666" y="948" width="130" height="22" rx="11" class="badge"/>
+  <text x="731" y="964" class="s" text-anchor="middle">● Disponible</text>
+  <rect x="966" y="948" width="130" height="22" rx="11" class="badge"/>
+  <text x="1031" y="964" class="s" text-anchor="middle">◐ Pocas unidades</text>
+
+  <!-- Paginación prevista -->
+  <rect x="350" y="1046" width="880" height="32" class="dash"/>
+  <text x="790" y="1067" class="s" text-anchor="middle">‹ Anterior   1   2   3   Siguiente ›   (prevista: meta.page · per_page · total)</text>
+
+  <!-- Pie -->
+  <rect x="20" y="1094" width="1240" height="66" class="band"/>
+  <text x="44" y="1122" class="s">Proyecto Rotor · Prototipo académico — todos los productos, precios y existencias son sintéticos</text>
+  <text x="44" y="1144" class="s">Catálogo · Carrito  |  Estados de demostración: carga · sin resultados · error</text>
+
+  <!-- Marcadores -->
+  <use href="#mk" x="1246" y="92"/><text x="1246" y="97" class="mkt" text-anchor="middle">1</text>
+  <use href="#mk" x="318" y="266"/><text x="318" y="271" class="mkt" text-anchor="middle">2</text>
+  <use href="#mk" x="1228" y="314"/><text x="1228" y="319" class="mkt" text-anchor="middle">3</text>
+  <use href="#mk" x="628" y="372"/><text x="628" y="377" class="mkt" text-anchor="middle">4</text>
+  <use href="#mk" x="636" y="659"/><text x="636" y="664" class="mkt" text-anchor="middle">5</text>
+  <use href="#mk" x="1228" y="1048"/><text x="1228" y="1053" class="mkt" text-anchor="middle">6</text>
+  <use href="#mk" x="1246" y="1110"/><text x="1246" y="1115" class="mkt" text-anchor="middle">7</text>
+
+  <!-- Anotaciones -->
+  <text x="1290" y="92" class="h2">Anotaciones</text>
+
+  <use href="#mk" x="1304" y="128"/><text x="1304" y="133" class="mkt" text-anchor="middle">1</text>
+  <text x="1326" y="126" class="nt">Encabezado: marca, navegación y</text>
+  <text x="1326" y="144" class="nt">contador del carrito (enlace a checkout).</text>
+
+  <use href="#mk" x="1304" y="188"/><text x="1304" y="193" class="mkt" text-anchor="middle">2</text>
+  <text x="1326" y="186" class="nt">Filtros. Búsqueda libre →</text>
+  <text x="1326" y="204" class="nt">GET /api/products?q=. Categoría,</text>
+  <text x="1326" y="222" class="nt">disponibilidad y orden se resuelven</text>
+  <text x="1326" y="240" class="nt">hoy en el navegador.</text>
+
+  <use href="#mk" x="1304" y="284"/><text x="1304" y="289" class="mkt" text-anchor="middle">3</text>
+  <text x="1326" y="282" class="nt">Zona de estado anunciada a lectores</text>
+  <text x="1326" y="300" class="nt">de pantalla: carga, sin resultados y</text>
+  <text x="1326" y="318" class="nt">error con reintento.</text>
+
+  <use href="#mk" x="1304" y="362"/><text x="1304" y="367" class="mkt" text-anchor="middle">4</text>
+  <text x="1326" y="360" class="nt">Tarjeta: nombre, SKU, precio sin IVA,</text>
+  <text x="1326" y="378" class="nt">unidad y disponibilidad derivada de</text>
+  <text x="1326" y="396" class="nt">available_quantity.</text>
+
+  <use href="#mk" x="1304" y="440"/><text x="1304" y="445" class="mkt" text-anchor="middle">5</text>
+  <text x="1326" y="438" class="nt">Acción principal “Ver detalle” →</text>
+  <text x="1326" y="456" class="nt">ficha del producto por product_id.</text>
+
+  <use href="#mk" x="1304" y="500"/><text x="1304" y="505" class="mkt" text-anchor="middle">6</text>
+  <text x="1326" y="498" class="nt">Paginación prevista con el meta de la</text>
+  <text x="1326" y="516" class="nt">API; el prototipo aún no la muestra.</text>
+
+  <use href="#mk" x="1304" y="560"/><text x="1304" y="565" class="mkt" text-anchor="middle">7</text>
+  <text x="1326" y="558" class="nt">Pie: aviso de datos sintéticos y</text>
+  <text x="1326" y="576" class="nt">enlaces a estados de demostración.</text>
+
+  <rect x="1290" y="620" width="340" height="70" class="dash"/>
+  <text x="1304" y="648" class="s">Línea discontinua = zona condicional o prevista.</text>
+  <text x="1304" y="670" class="s">Rectángulo con aspa = imagen de relleno.</text>
+</svg>
