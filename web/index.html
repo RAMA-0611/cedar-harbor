@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de componentes industriales · Proyecto Rotor</title>
+  <meta name="description" content="Prototipo navegable del catálogo de Proyecto Rotor con datos sintéticos de componentes electromecánicos.">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="catalogo">
+  <header class="encabezado">
+    <div class="contenedor encabezado__interior">
+      <a class="marca" href="index.html">
+        <span class="marca__logo" aria-hidden="true">R</span>
+        <span class="marca__nombre">Proyecto Rotor</span>
+      </a>
+      <nav aria-label="Principal">
+        <ul class="nav-principal">
+          <li><a href="index.html" aria-current="page">Catálogo</a></li>
+          <li><a href="checkout.html">Carrito <span class="contador" data-cart-count>0</span><span class="sr-only"> productos</span></a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="banner" aria-labelledby="titulo-pagina">
+      <div class="contenedor">
+        <h1 id="titulo-pagina">Catálogo de componentes industriales</h1>
+        <p>Rodamientos, protección eléctrica, control y conductores para mantenimiento electromecánico.</p>
+      </div>
+    </section>
+
+    <div class="contenedor catalogo">
+      <aside class="filtros" aria-labelledby="titulo-filtros">
+        <h2 id="titulo-filtros" class="filtros__titulo">Filtrar productos</h2>
+        <form id="form-filtros" class="filtros__form" role="search" aria-label="Buscar y filtrar productos">
+          <div class="campo">
+            <label for="busqueda">Buscar por nombre o SKU</label>
+            <input id="busqueda" name="q" type="search" autocomplete="off" placeholder="Ej.: contactor o 6205">
+          </div>
+          <div class="campo">
+            <label for="categoria">Categoría</label>
+            <select id="categoria" name="categoria">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="disponibilidad">Disponibilidad</label>
+            <select id="disponibilidad" name="disponibilidad">
+              <option value="">Todas</option>
+              <option value="disponible">Disponible</option>
+              <option value="pocas_unidades">Pocas unidades</option>
+              <option value="agotado">Agotado</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="orden">Ordenar por</label>
+            <select id="orden" name="orden">
+              <option value="relevancia">Relevancia</option>
+              <option value="precio-asc">Precio: menor a mayor</option>
+              <option value="precio-desc">Precio: mayor a menor</option>
+              <option value="nombre">Nombre (A–Z)</option>
+            </select>
+          </div>
+          <button type="reset" class="boton boton--secundario">Limpiar filtros</button>
+        </form>
+      </aside>
+
+      <section class="resultados" aria-labelledby="titulo-resultados">
+        <div class="resultados__cabecera">
+          <h2 id="titulo-resultados">Productos</h2>
+          <p id="conteo" class="resultados__conteo" aria-live="polite"></p>
+        </div>
+        <div id="estado"></div>
+        <ul id="lista-productos" class="grid-productos"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p><strong>Proyecto Rotor</strong> · Prototipo académico de la Entrega 2. Todos los productos, precios y existencias son datos sintéticos.</p>
+      <nav aria-label="Pie de página">
+        <ul class="pie__enlaces">
+          <li><a href="index.html">Catálogo</a></li>
+          <li><a href="checkout.html">Carrito y checkout</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
