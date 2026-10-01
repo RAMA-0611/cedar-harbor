@@ -14,7 +14,7 @@ El alcance público del proyecto se centra en la capa transaccional: catálogo, 
 
 ---
 
-## Problem
+## Problema
 
 Una organización del sector industrial administra un volumen importante de materiales, repuestos, componentes, herramientas y equipos.
 
