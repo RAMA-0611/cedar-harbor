@@ -61,7 +61,78 @@ const describirStock = (producto) => {
 const iconoCategoria = (categoria) =>
   `<svg viewBox="0 0 48 48" focusable="false" aria-hidden="true">${ICONOS_CATEGORIA[categoria] ?? ICONOS_CATEGORIA.defecto}</svg>`;
 
+/* Estados de demostración: ?state=loading|empty|error */
+
+const ESTADOS_DEMO = {
+  loading: 'carga en curso',
+  empty: 'vacío',
+  error: 'error de carga',
+};
+
+const leerEstadoDemo = () => {
+  const estado = new URLSearchParams(window.location.search).get('state');
+  return Object.hasOwn(ESTADOS_DEMO, estado ?? '') ? estado : null;
+};
+
+const urlSinEstadoDemo = () => {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('state');
+  return `${url.pathname}${url.search}${url.hash}`;
+};
+
+const quitarEstadoDemo = () => {
+  if (!leerEstadoDemo()) return;
+  window.history.replaceState(null, '', urlSinEstadoDemo());
+  document.getElementById('aviso-demo')?.remove();
+};
+
+const mostrarAvisoDemo = () => {
+  const estado = leerEstadoDemo();
+  const contenedorEstado = document.getElementById('estado');
+  if (!estado || !contenedorEstado) return;
+  const aviso = document.createElement('p');
+  aviso.id = 'aviso-demo';
+  aviso.className = 'aviso aviso--info aviso-demo';
+  aviso.innerHTML = `Vista de demostración: estado <strong>${ESTADOS_DEMO[estado]}</strong>.
+    <a href="${escaparHtml(urlSinEstadoDemo())}">Ver la página sin simulación</a>`;
+  contenedorEstado.before(aviso);
+};
+
+const plantillaCargando = (texto) => `
+  <div class="estado estado--cargando" role="status">
+    <span class="cargador" aria-hidden="true"></span>
+    <p>${escaparHtml(texto)}</p>
+  </div>`;
+
+const plantillaError = (nivelTitulo, titulo, detalle) => `
+  <div class="estado estado--error" role="alert">
+    <h${nivelTitulo} class="estado__titulo">${escaparHtml(titulo)}</h${nivelTitulo}>
+    <p>${escaparHtml(detalle)}</p>
+    <button type="button" class="boton boton--primario" data-reintentar>Reintentar</button>
+  </div>`;
+
+const enfocarPrimerEncabezadoVisible = (contenedor) => {
+  const encabezado = [...contenedor.querySelectorAll('h1, h2, h3')].find((nodo) => nodo.offsetParent !== null);
+  if (!encabezado) return;
+  encabezado.tabIndex = -1;
+  encabezado.focus();
+};
+
+const conectarReintento = (iniciar) => {
+  const estado = document.getElementById('estado');
+  estado?.addEventListener('click', async (evento) => {
+    if (!evento.target.closest('[data-reintentar]')) return;
+    quitarEstadoDemo();
+    await iniciar();
+    enfocarPrimerEncabezadoVisible(estado.closest('section') ?? document.getElementById('contenido'));
+  });
+};
+
 const cargarCatalogo = async () => {
+  const estadoDemo = leerEstadoDemo();
+  if (estadoDemo === 'loading') return new Promise(() => {});
+  if (estadoDemo === 'error') throw new Error('Error simulado: el servicio de catálogo no respondió. Revisa tu conexión e inténtalo de nuevo.');
+
   const respuesta = await fetch(RUTA_DATOS, { cache: 'no-store' });
   if (!respuesta.ok) throw new Error(`No se pudo cargar el catálogo (HTTP ${respuesta.status})`);
   return respuesta.json();
@@ -172,21 +243,45 @@ const leerFiltros = (formulario) => {
   };
 };
 
+const PLANTILLA_SIN_RESULTADOS = `
+  <div class="estado estado--vacio">
+    <h3 class="estado__titulo">No encontramos productos para los filtros seleccionados</h3>
+    <p>Prueba con otra búsqueda o limpia los filtros para ver todo el catálogo.</p>
+    <button type="button" class="boton boton--secundario" data-limpiar-filtros>Limpiar filtros</button>
+  </div>`;
+
+const aplicarFiltrosSinResultados = (formulario, productos, categorias) => {
+  const categoriaSinAgotados = categorias.find((categoria) => !productos
+    .some((producto) => producto.categoria === categoria && obtenerClaveDisponibilidad(producto) === 'agotado'));
+  if (categoriaSinAgotados) {
+    formulario.elements.categoria.value = categoriaSinAgotados;
+    formulario.elements.disponibilidad.value = 'agotado';
+    return;
+  }
+  formulario.elements.q.value = 'sin coincidencias';
+};
+
 const iniciarCatalogo = async () => {
   const formulario = document.getElementById('form-filtros');
+  const resultados = document.querySelector('.resultados');
   const lista = document.getElementById('lista-productos');
   const conteo = document.getElementById('conteo');
   const estado = document.getElementById('estado');
   const selectCategoria = document.getElementById('categoria');
 
-  estado.innerHTML = '<p class="mensaje">Cargando catálogo…</p>';
+  lista.innerHTML = '';
+  conteo.textContent = '';
+  resultados.setAttribute('aria-busy', 'true');
+  estado.innerHTML = plantillaCargando('Cargando catálogo…');
 
   let productos = [];
   try {
     ({ productos } = await cargarCatalogo());
   } catch (error) {
-    estado.innerHTML = `<p class="mensaje">${escaparHtml(error.message)}</p>`;
+    estado.innerHTML = plantillaError(3, 'No pudimos cargar el catálogo', error.message);
     return;
+  } finally {
+    resultados.removeAttribute('aria-busy');
   }
   estado.innerHTML = '';
 
@@ -199,16 +294,29 @@ const iniciarCatalogo = async () => {
     const visibles = filtrarProductos(productos, leerFiltros(formulario));
     lista.innerHTML = visibles.map(crearTarjeta).join('');
     conteo.textContent = `${visibles.length} de ${productos.length} productos`;
-    estado.innerHTML = visibles.length ? '' : '<p class="mensaje">No encontramos productos para los filtros seleccionados.</p>';
+    estado.innerHTML = visibles.length ? '' : PLANTILLA_SIN_RESULTADOS;
   };
 
-  formulario.addEventListener('input', renderizar);
+  formulario.addEventListener('input', () => {
+    quitarEstadoDemo();
+    renderizar();
+  });
   formulario.addEventListener('submit', (evento) => {
     evento.preventDefault();
     renderizar();
   });
-  formulario.addEventListener('reset', () => requestAnimationFrame(renderizar));
+  formulario.addEventListener('reset', () => {
+    quitarEstadoDemo();
+    requestAnimationFrame(renderizar);
+  });
 
+  estado.addEventListener('click', (evento) => {
+    if (!evento.target.closest('[data-limpiar-filtros]')) return;
+    formulario.reset();
+    document.getElementById('busqueda').focus();
+  });
+
+  if (leerEstadoDemo() === 'empty') aplicarFiltrosSinResultados(formulario, productos, categorias);
   renderizar();
 };
 
@@ -240,14 +348,14 @@ const iniciarDetalle = async () => {
   const ficha = document.getElementById('ficha');
   const id = new URLSearchParams(window.location.search).get('id');
 
-  estado.innerHTML = '<p class="mensaje">Cargando producto…</p>';
+  estado.innerHTML = plantillaCargando('Cargando producto…');
 
   let producto;
   try {
     const { productos } = await cargarCatalogo();
     producto = productos.find((item) => item.id === id);
   } catch (error) {
-    estado.innerHTML = `<h1>No pudimos cargar el producto</h1><p class="mensaje">${escaparHtml(error.message)}</p>`;
+    estado.innerHTML = plantillaError(1, 'No pudimos cargar el producto', error.message);
     return;
   }
 
@@ -379,13 +487,13 @@ const iniciarCheckout = async () => {
     confirmacion: document.getElementById('paso-confirmacion'),
   };
 
-  estado.innerHTML = '<p class="mensaje">Cargando carrito…</p>';
+  estado.innerHTML = plantillaCargando('Cargando carrito…');
 
   let catalogo;
   try {
     catalogo = await cargarCatalogo();
   } catch (error) {
-    estado.innerHTML = `<p class="mensaje">${escaparHtml(error.message)}</p>`;
+    estado.innerHTML = plantillaError(2, 'No pudimos cargar tu carrito', error.message);
     return;
   }
   estado.innerHTML = '';
@@ -393,7 +501,7 @@ const iniciarCheckout = async () => {
   const tasaIva = catalogo.tasa_iva;
   const productosPorId = new Map(catalogo.productos.map((producto) => [producto.id, producto]));
 
-  const obtenerLineas = () => leerCarrito()
+  const obtenerLineas = () => (leerEstadoDemo() === 'empty' ? [] : leerCarrito())
     .filter((linea) => productosPorId.has(linea.id))
     .map((linea) => ({ ...linea, producto: productosPorId.get(linea.id) }));
 
@@ -569,5 +677,9 @@ const PAGINAS = {
 
 document.addEventListener('DOMContentLoaded', () => {
   actualizarContadorCarrito();
-  PAGINAS[document.body.dataset.page]?.();
+  mostrarAvisoDemo();
+  const iniciarPagina = PAGINAS[document.body.dataset.page];
+  if (!iniciarPagina) return;
+  conectarReintento(iniciarPagina);
+  iniciarPagina();
 });
