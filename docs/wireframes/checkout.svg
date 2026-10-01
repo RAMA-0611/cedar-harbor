@@ -118,7 +118,7 @@
 
   <rect x="70" y="1046" width="740" height="50" class="dash"/>
   <text x="86" y="1068" class="t">Dirección de entrega (solo con envío coordinado)</text>
-  <text x="86" y="1086" class="s">⚠ Solo existe en la UI: no está en el contrato ni en el modelo (discrepancia abierta)</text>
+  <text x="86" y="1086" class="s">Obligatoria con envío coordinado; no aplica con retiro en sede.</text>
 
   <rect x="70" y="1106" width="740" height="30" class="band"/>
   <text x="86" y="1126" class="s"><tspan font-weight="700">Pago sandbox — demostración.</tspan> No se procesan pagos reales.</text>
@@ -189,9 +189,10 @@
   <text x="1326" y="378" class="nt">PICKUP / COORDINATED_SHIPPING.</text>
 
   <use href="#mk" x="1304" y="422"/><text x="1304" y="427" class="mkt" text-anchor="middle">5</text>
-  <text x="1326" y="420" class="nt">Dirección: solo existe en la UI.</text>
-  <text x="1326" y="438" class="nt">Discrepancia abierta con contrato y</text>
-  <text x="1326" y="456" class="nt">modelo (ver docs/modelo-datos.md).</text>
+  <text x="1326" y="420" class="nt">Dirección → DeliveryData.address →</text>
+  <text x="1326" y="438" class="nt">orders.delivery_address (snapshot).</text>
+  <text x="1326" y="456" class="nt">Obligatoria con COORDINATED_SHIPPING;</text>
+  <text x="1326" y="474" class="nt">NULL con PICKUP.</text>
 
   <use href="#mk" x="1304" y="500"/><text x="1304" y="505" class="mkt" text-anchor="middle">6</text>
   <text x="1326" y="498" class="nt">“Continuar al pago” →</text>
