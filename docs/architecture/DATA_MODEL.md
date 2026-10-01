@@ -5,13 +5,19 @@ No incluye migraciones ni implementación.
 
 Fuentes de verdad:
 
-- `docs/api/openapi.yaml` (contrato aprobado)
+- `api/openapi.yaml` (contrato aprobado)
 - `docs/ARCHITECTURE.md`
 - `README.md`
 
 > This document describes the conceptual relational model of Project Rotor.
 > It does not represent private infrastructure, production topology,
 > internal hostnames or deployment details.
+
+**Motor de persistencia elegido: PostgreSQL** (ver `docs/decisiones.md`,
+ADR-E2-001). Es el motor de la arquitectura de Project Rotor; la
+configuración del skeleton Laravel del repositorio se alineará en la rama de
+integración. Este documento no afirma que exista una base PostgreSQL
+desplegada.
 
 ---
 
@@ -160,12 +166,13 @@ asociada) debe tener **como máximo un** carrito `ACTIVE`.
 carritos históricos `EXPIRED`, `CONVERTED` o `ABANDONED` para el mismo
 cliente.
 
-En MySQL la unicidad de ACTIVE se resolverá posteriormente mediante una
-estrategia explícita, por ejemplo:
+La unicidad de ACTIVE se resuelve en v0.1 mediante:
 
-- transacción + locking + validación de dominio; **o**
-- estrategia técnica equivalente apropiada (p. ej. índice filtrado /
-  columna generada si el motor/versión lo permite de forma clara).
+- transacción + locking + validación de dominio.
+
+PostgreSQL permitiría un índice único parcial
+(`UNIQUE (customer_id) WHERE status = 'ACTIVE'`); queda anotado solo como
+**posible implementación futura**, no adoptada en v0.1.
 
 **No se implementa todavía.**
 
@@ -391,9 +398,9 @@ Estrategia UNIQUE preferida cuando la referencia existe:
 UNIQUE (provider, provider_reference)
 ```
 
-En MySQL, múltiples `NULL` en columnas UNIQUE suelen permitirse; el dominio
-debe evitar dos filas “pendientes de referencia” ambiguas para el mismo
-intento lógico si aplica.
+En PostgreSQL, por defecto, varios `NULL` en una restricción UNIQUE se
+consideran distintos y se permiten; el dominio debe evitar dos filas
+“pendientes de referencia” ambiguas para el mismo intento lógico si aplica.
 
 ### Valores EXACTOS desde OpenAPI
 
@@ -545,27 +552,42 @@ debe crearse un índice simple `INDEX cart_items(cart_id)` duplicado.
 | `INDEX (order_id)` | `webhook_events` | Auditoría por orden |
 | `INDEX (payment_id)` | `webhook_events` | Auditoría por pago |
 | `INDEX (processing_status, received_at)` | `webhook_events` | Operación / reproceso |
+| `INDEX (order_id)` | `order_items` | Líneas de una orden (soporte de FK) |
+| `INDEX (cart_id)` | `stock_reservations` | Reservas de un carrito (soporte de FK) |
+| `INDEX (cart_item_id)` | `stock_reservations` | Reservas de una línea (soporte de FK) |
 
-### Foreign keys e índices en MySQL/InnoDB
+### Foreign keys e índices en PostgreSQL
 
-Las foreign keys requieren índices adecuados en MySQL/InnoDB.
+PostgreSQL **no** crea automáticamente un índice sobre la columna que
+declara una foreign key (solo sobre PK y UNIQUE). Las tres últimas filas de
+la tabla anterior son FK sin otro índice que las cubra; en un motor que
+indexa FK de forma implícita quedaban cubiertas sin declararlas.
 
 Durante las migraciones:
 
 - si un UNIQUE o índice compuesto existente ya comienza por la columna FK,
   ese índice puede satisfacer el requisito;
-- si el FK / engine / framework crea el índice necesario, **NO** se debe
-  añadir otro índice idéntico;
-- crear un índice explícito adicional únicamente cuando soporte un patrón
-  de consulta compuesto distinto.
+- si el framework ya crea el índice necesario, **NO** se debe añadir otro
+  índice idéntico;
+- si ningún índice existente cubre la FK, crear el índice simple de soporte
+  (PostgreSQL no lo genera por sí mismo);
+- fuera de esos casos, crear un índice explícito adicional únicamente cuando
+  soporte un patrón de consulta compuesto distinto.
 
-Ejemplos:
+Cobertura de todas las FK:
 
 | Columna FK | Cubierta por |
 |------------|--------------|
-| `cart_items.cart_id` | `UNIQUE(cart_id, product_id)` |
 | `carts.customer_id` | `INDEX(customer_id, status)` |
+| `cart_items.cart_id` | `UNIQUE(cart_id, product_id)` |
+| `stock_reservations.cart_id` | `INDEX(cart_id)` |
+| `stock_reservations.cart_item_id` | `INDEX(cart_item_id)` |
+| `stock_reservations.order_id` | `INDEX(order_id)` |
 | `orders.customer_id` | `INDEX(customer_id, created_at)` |
+| `order_items.order_id` | `INDEX(order_id)` |
+| `payments.order_id` | `INDEX(order_id)` |
+| `webhook_events.order_id` | `INDEX(order_id)` |
+| `webhook_events.payment_id` | `INDEX(payment_id)` |
 
 No crear índices duplicados únicamente porque una columna también sea FK.
 
@@ -762,7 +784,9 @@ Cardinalidades:
 
 - **Context:** Históricos EXPIRED/CONVERTED/ABANDONED deben coexistir.
 - **Decision:** Regla de dominio + locking; INDEX `(customer_id, status)` no UNIQUE.
-- **Consequence:** MySQL enforcement explícito en implementación futura.
+- **Consequence:** Enforcement explícito en implementación futura
+  (transacción + locking); el índice parcial de PostgreSQL queda como opción
+  futura.
 
 ### ADR-DATA-009 Guest checkout (v0.1 option A)
 
