@@ -124,8 +124,9 @@ revisión futura del contrato si se desea exponer esa distinción.
 | created_at | datetime | No | | Alta |
 | updated_at | datetime | No | | Última actualización |
 
-Índices sugeridos: `(email)`, `(document_type, document_number)` — no UNIQUE
-obligatorio en v0.1.
+Índices definitivos (**NO UNIQUE**): ver §15 —
+`INDEX customers(email)` y `INDEX customers(document_type, document_number)`.
+No se asume unicidad comercial de email/documento en v0.1.
 
 ---
 
@@ -205,6 +206,10 @@ Constraint:
 ```text
 UNIQUE (cart_id, product_id)
 ```
+
+El UNIQUE compuesto `(cart_id, product_id)` también satisface el patrón de
+acceso por `cart_id` como prefijo izquierdo; **no** debe crearse un índice
+simple `INDEX cart_items(cart_id)` duplicado.
 
 ---
 
@@ -505,7 +510,10 @@ el perdedor relee y compara hash.
 
 ## 15. Indexes and UNIQUE constraints (definitive)
 
-### UNIQUE (y el índice que implican — no duplicar INDEX aparte)
+Lista inequívoca de patrones de acceso requeridos para v0.1.
+Al implementar migraciones: **no** crear índices físicos duplicados.
+
+### UNIQUE
 
 | Constraint | Tabla |
 |------------|-------|
@@ -516,24 +524,53 @@ el perdedor relee y compara hash.
 | `UNIQUE (provider, provider_reference)` | `payments` (cuando reference no NULL / política motor) |
 | `UNIQUE (provider, external_event_id)` | `webhook_events` |
 
-### INDEX no únicos
-
-| Índice | Justificación |
-|--------|---------------|
-| `carts(customer_id, status)` | Localizar ACTIVE / historial — **NO UNIQUE** |
-| `cart_items(cart_id)` | Cargar líneas (además del UNIQUE compuesto) |
-| `stock_reservations(product_id, status, expires_at)` | Orquestación / expiración |
-| `stock_reservations(order_id)` | Reservas de una orden |
-| `orders(customer_id, created_at)` | Historial |
-| `orders(status, created_at)` | Operación |
-| `payments(order_id)` | Intentos de una orden |
-| `webhook_events(order_id)` | Auditoría por orden |
-| `webhook_events(payment_id)` | Auditoría por pago |
-| `webhook_events(processing_status, received_at)` | Operación / reproceso |
-
 **Prohibido:** `UNIQUE(customer_id, status)` en `carts`.
 
-No listar de nuevo como INDEX simple las columnas ya cubiertas por UNIQUE.
+Nota `cart_items`: el UNIQUE compuesto `(cart_id, product_id)` también
+satisface el patrón de acceso por `cart_id` como prefijo izquierdo; **no**
+debe crearse un índice simple `INDEX cart_items(cart_id)` duplicado.
+
+### INDEX no UNIQUE (conceptuales / patrones de acceso)
+
+| Índice | Tabla | Notas |
+|--------|-------|-------|
+| `INDEX (email)` | `customers` | **NO UNIQUE** — búsqueda/correlación |
+| `INDEX (document_type, document_number)` | `customers` | **NO UNIQUE** — búsqueda/correlación |
+| `INDEX (customer_id, status)` | `carts` | Localizar ACTIVE / historial |
+| `INDEX (product_id, status, expires_at)` | `stock_reservations` | Orquestación / expiración |
+| `INDEX (order_id)` | `stock_reservations` | Reservas de una orden |
+| `INDEX (customer_id, created_at)` | `orders` | Historial por cliente |
+| `INDEX (status, created_at)` | `orders` | Operación / conciliación |
+| `INDEX (order_id)` | `payments` | Intentos de una orden |
+| `INDEX (order_id)` | `webhook_events` | Auditoría por orden |
+| `INDEX (payment_id)` | `webhook_events` | Auditoría por pago |
+| `INDEX (processing_status, received_at)` | `webhook_events` | Operación / reproceso |
+
+### Foreign keys e índices en MySQL/InnoDB
+
+Las foreign keys requieren índices adecuados en MySQL/InnoDB.
+
+Durante las migraciones:
+
+- si un UNIQUE o índice compuesto existente ya comienza por la columna FK,
+  ese índice puede satisfacer el requisito;
+- si el FK / engine / framework crea el índice necesario, **NO** se debe
+  añadir otro índice idéntico;
+- crear un índice explícito adicional únicamente cuando soporte un patrón
+  de consulta compuesto distinto.
+
+Ejemplos:
+
+| Columna FK | Cubierta por |
+|------------|--------------|
+| `cart_items.cart_id` | `UNIQUE(cart_id, product_id)` |
+| `carts.customer_id` | `INDEX(customer_id, status)` |
+| `orders.customer_id` | `INDEX(customer_id, created_at)` |
+
+No crear índices duplicados únicamente porque una columna también sea FK.
+
+La lista de esta sección expresa los **patrones de acceso requeridos**;
+**no** autoriza crear índices físicos duplicados.
 
 ---
 
