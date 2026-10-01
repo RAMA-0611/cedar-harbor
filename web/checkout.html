@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Carrito y checkout · Proyecto Rotor</title>
+  <meta name="description" content="Flujo de carrito, datos del comprador y confirmación simulada del prototipo de Proyecto Rotor.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230f4c5c'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='18' font-weight='700' text-anchor='middle' fill='white'%3ER%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/app.js" defer></script>
+</head>
+<body data-page="checkout">
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="encabezado">
+    <div class="contenedor encabezado__interior">
+      <a class="marca" href="index.html">
+        <span class="marca__logo" aria-hidden="true">R</span>
+        <span class="marca__nombre">Proyecto Rotor</span>
+      </a>
+      <nav aria-label="Principal">
+        <ul class="nav-principal">
+          <li><a href="index.html">Catálogo</a></li>
+          <li><a href="checkout.html" aria-current="page">Carrito <span class="contador" data-cart-count>0</span><span class="sr-only"> productos</span></a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" class="contenedor pagina" tabindex="-1">
+    <h1>Carrito y checkout</h1>
+
+    <ol class="pasos" aria-label="Pasos de la compra">
+      <li data-paso-indicador="carrito"><span class="pasos__numero" aria-hidden="true">1</span> Carrito</li>
+      <li data-paso-indicador="datos"><span class="pasos__numero" aria-hidden="true">2</span> Datos</li>
+      <li data-paso-indicador="confirmacion"><span class="pasos__numero" aria-hidden="true">3</span> Confirmación</li>
+    </ol>
+
+    <div id="estado"></div>
+
+    <div class="checkout">
+      <div class="checkout__principal">
+        <section id="paso-carrito" aria-labelledby="titulo-carrito" hidden>
+          <h2 id="titulo-carrito" tabindex="-1">1. Revisa tu carrito</h2>
+          <ul id="lineas-carrito" class="lineas"></ul>
+          <div class="acciones">
+            <a class="boton boton--secundario" href="index.html">Seguir comprando</a>
+            <button type="button" class="boton boton--primario" id="ir-a-datos">Continuar con mis datos</button>
+          </div>
+        </section>
+
+        <section id="paso-datos" aria-labelledby="titulo-datos" hidden>
+          <h2 id="titulo-datos" tabindex="-1">2. Datos del comprador</h2>
+
+          <div id="resumen-errores" class="aviso aviso--error" role="alert" tabindex="-1" hidden></div>
+
+          <form id="form-checkout" class="form-checkout" novalidate>
+            <div class="campo">
+              <label for="nombre">Nombre completo</label>
+              <input id="nombre" name="nombre" type="text" autocomplete="name" required aria-describedby="nombre-error">
+              <p id="nombre-error" class="error-campo"></p>
+            </div>
+
+            <div class="form-checkout__fila">
+              <div class="campo">
+                <label for="tipo-documento">Tipo de documento</label>
+                <select id="tipo-documento" name="tipo_documento" required aria-describedby="tipo-documento-error">
+                  <option value="">Selecciona una opción</option>
+                  <option value="CC">Cédula de ciudadanía</option>
+                  <option value="CE">Cédula de extranjería</option>
+                  <option value="NIT">NIT</option>
+                  <option value="PAS">Pasaporte</option>
+                </select>
+                <p id="tipo-documento-error" class="error-campo"></p>
+              </div>
+              <div class="campo">
+                <label for="numero-documento">Número de documento</label>
+                <input id="numero-documento" name="numero_documento" type="text" inputmode="numeric" autocomplete="off" required aria-describedby="numero-documento-ayuda numero-documento-error">
+                <p id="numero-documento-ayuda" class="ayuda">Solo números, entre 5 y 12 dígitos.</p>
+                <p id="numero-documento-error" class="error-campo"></p>
+              </div>
+            </div>
+
+            <div class="form-checkout__fila">
+              <div class="campo">
+                <label for="correo">Correo electrónico</label>
+                <input id="correo" name="correo" type="email" autocomplete="email" placeholder="nombre@example.com" required aria-describedby="correo-error">
+                <p id="correo-error" class="error-campo"></p>
+              </div>
+              <div class="campo">
+                <label for="telefono">Teléfono</label>
+                <input id="telefono" name="telefono" type="tel" autocomplete="tel" placeholder="300 000 0000" required aria-describedby="telefono-ayuda telefono-error">
+                <p id="telefono-ayuda" class="ayuda">Celular de 10 dígitos.</p>
+                <p id="telefono-error" class="error-campo"></p>
+              </div>
+            </div>
+
+            <fieldset class="campo opciones" aria-describedby="entrega-error">
+              <legend>Modalidad de entrega</legend>
+              <label class="opcion">
+                <input id="entrega-retiro" type="radio" name="entrega" value="retiro" required>
+                <span><strong>Retiro en sede</strong><br><span class="ayuda">Sin costo. Disponible desde el siguiente día hábil.</span></span>
+              </label>
+              <label class="opcion">
+                <input id="entrega-envio" type="radio" name="entrega" value="envio">
+                <span><strong>Envío coordinado</strong><br><span class="ayuda">Un asesor confirma costo y fecha por teléfono.</span></span>
+              </label>
+              <p id="entrega-error" class="error-campo"></p>
+            </fieldset>
+
+            <div class="campo" id="campo-direccion" hidden>
+              <label for="direccion">Dirección de entrega</label>
+              <input id="direccion" name="direccion" type="text" autocomplete="street-address" maxlength="255" aria-describedby="direccion-error">
+              <p id="direccion-error" class="error-campo"></p>
+            </div>
+
+            <p class="aviso aviso--info"><strong>Pago sandbox — demostración.</strong> Este prototipo no procesa pagos reales ni guarda tus datos.</p>
+
+            <div class="acciones">
+              <button type="button" class="boton boton--secundario" id="volver-a-carrito">Volver al carrito</button>
+              <button type="submit" class="boton boton--primario">Continuar al pago</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="paso-confirmacion" aria-labelledby="titulo-confirmacion" hidden>
+          <h2 id="titulo-confirmacion" tabindex="-1">3. Confirmación simulada</h2>
+          <div class="aviso aviso--exito">
+            <p><strong>Pago sandbox — demostración.</strong> No se realizó ningún cobro.</p>
+            <p id="confirmacion-detalle"></p>
+          </div>
+          <div class="acciones">
+            <a class="boton boton--primario" href="index.html">Volver al catálogo</a>
+          </div>
+        </section>
+      </div>
+
+      <aside class="resumen" id="resumen" aria-labelledby="titulo-resumen" hidden>
+        <h2 id="titulo-resumen">Resumen del pedido</h2>
+        <ul id="resumen-lineas" class="resumen__lineas"></ul>
+        <dl class="resumen__totales">
+          <div><dt>Subtotal</dt><dd id="resumen-subtotal"></dd></div>
+          <div><dt>IVA (19 %)</dt><dd id="resumen-iva"></dd></div>
+          <div class="resumen__total"><dt>Total</dt><dd id="resumen-total"></dd></div>
+        </dl>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p><strong>Proyecto Rotor</strong> · Prototipo académico de la Entrega 2. Todos los productos, precios y existencias son datos sintéticos.</p>
+      <nav aria-label="Pie de página">
+        <ul class="pie__enlaces">
+          <li><a href="index.html">Catálogo</a></li>
+          <li><a href="checkout.html">Carrito y checkout</a></li>
+        </ul>
+      </nav>
+      <nav class="pie__demo" aria-labelledby="titulo-demo">
+        <p id="titulo-demo" class="pie__demo-titulo">Estados de demostración:</p>
+        <ul class="pie__enlaces">
+          <li><a href="index.html?state=loading">Simular carga</a></li>
+          <li><a href="index.html?state=empty">Simular sin resultados</a></li>
+          <li><a href="index.html?state=error">Simular error</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
