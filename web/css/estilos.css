@@ -300,6 +300,10 @@ svg {
   gap: 0.375rem;
 }
 
+.campo[hidden] {
+  display: none;
+}
+
 .campo label,
 .campo legend {
   font-weight: 700;
