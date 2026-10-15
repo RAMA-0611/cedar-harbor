@@ -75,13 +75,16 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 | Catálogo público | IMPLEMENTADO |
 | Carrito persistente | IMPLEMENTADO |
 | Reservas de stock | IMPLEMENTADAS |
+| Checkout | IMPLEMENTADO |
+| Orden | IMPLEMENTADA hasta `PENDING_PAYMENT` |
+| Idempotencia | IMPLEMENTADA |
 | Documentación interactiva (`/docs`) | IMPLEMENTADA |
-| Checkout | PENDIENTE / siguiente gate |
-| Orden | PENDIENTE / siguiente gate |
 | Frontend Next.js | PENDIENTE |
-| Sandbox real de pagos | PENDIENTE |
+| Pasarela sandbox | PENDIENTE / issue #9 |
+| Webhook | PENDIENTE / issue #9 |
+| Conciliación | PENDIENTE / issue #9 |
 
-API en `main`: **29** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4).
+API en `main`: **34** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
 
 ### Snapshot histórico — cierre Entrega 2
 
@@ -99,7 +102,7 @@ API en `main`: **29** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4
 | Frontend Next.js (`frontend/`) | PLANIFICADO |
 | Pasarela sandbox real | NO IMPLEMENTADA |
 
-El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. La API Laravel de Entrega 3 es el camino vigente para autenticación, catálogo, CRUD admin y carrito.
+El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. La API Laravel de Entrega 3 es el camino vigente hasta orden `PENDING_PAYMENT` (pagos sandbox en #9).
 
 ---
 
@@ -170,7 +173,20 @@ Abrir `http://127.0.0.1:8000/docs`.
 - `PATCH /api/cart/items/{cartItemId}`
 - `DELETE /api/cart/items/{cartItemId}`
 
-**Total API:** 29 rutas.
+**Checkout** (`auth:sanctum` + `CUSTOMER`)
+
+- `POST /api/checkout/validate`
+
+**Orders** (`auth:sanctum` + `CUSTOMER`)
+
+- `POST /api/orders` (requiere `Idempotency-Key`; éxito → `PENDING_PAYMENT`)
+- `GET /api/orders/{orderId}`
+- `GET /api/orders/{orderId}/status`
+- `POST /api/orders/{orderId}/cancel`
+
+**Total API:** 34 rutas / 34 operaciones OpenAPI.
+
+No se afirma transición a `PAID` ni pasarela sandbox en E3 (issue #9).
 
 ### Credenciales
 
@@ -244,7 +260,7 @@ Vista conceptual (no representa topología de servidores reales):
                                    └────────────────────┘
 ```
 
-- **Backend API:** Laravel 12 (PHP) — dominio, persistencia PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito y reservas. Checkout/orden/pagos siguen pendientes.
+- **Backend API:** Laravel 12 (PHP) — PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito/reservas, checkout, órdenes hasta `PENDING_PAYMENT` e idempotencia. Pagos sandbox / webhooks / conciliación pendientes (issue #9).
 - **Frontend:** Next.js / React — planificado; la Entrega 2 usa el prototipo estático de `web/`.
 - **Base de datos:** PostgreSQL local `rotor` con migraciones de dominio aplicadas (ver `docs/decisiones.md`).
 - **Autenticación API:** Laravel Sanctum (sesión SPA / cookie).
@@ -280,6 +296,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 | Tecnología | Uso |
 |---|---|
+| Pasarela sandbox / webhooks / conciliación | Issue #9 |
 | Next.js 16 / React 19 | Aplicación web |
 | TypeScript / Tailwind CSS | Tipado y estilos del frontend |
 | Playwright | Pruebas E2E |
@@ -405,16 +422,25 @@ Ejemplo: http://127.0.0.1:4010/api/products. Los endpoints protegidos exigen la 
 
 ## API contract and validation
 
-- Contrato: [`api/openapi.yaml`](./api/openapi.yaml) — OpenAPI 3.1.0, 7 grupos, 14 operaciones y 27 schemas.
-- Evidencia: [`docs/evidence/e2-api-validation.md`](./docs/evidence/e2-api-validation.md) y captura [`docs/evidence/openapi-validation.png`](./docs/evidence/openapi-validation.png).
+### Contrato actual — Entrega 3
 
-| Herramienta | Versión | Resultado |
+- Fuente única: [`api/openapi.yaml`](./api/openapi.yaml)
+- **34** operaciones implementadas (paridad con `php artisan route:list --path=api`)
+- Tags activos: Auth, Catalog, Admin*, Cart, Checkout, Orders
+- Endpoints de payment-intent / webhook / reconcile **no** forman parte del contrato activo E3 (reservados a #9; históricos en tag `v0.2.0`)
+
+### Contrato histórico — Entrega 2
+
+- Tag `v0.2.0`: contrato E2 con **14** operaciones (prototipo + mock Prism)
+- Evidencia E2: [`docs/evidence/e2-api-validation.md`](./docs/evidence/e2-api-validation.md) y [`docs/evidence/openapi-validation.png`](./docs/evidence/openapi-validation.png)
+
+| Herramienta | Versión | Uso |
 |---|---|---|
-| Redocly CLI | 2.57.0 | Válido, 0 errores |
-| Spectral CLI | 6.16.3 | 0 errores, 0 warnings, 0 hints |
-| Prism | 5.16.0 | Mock operativo |
+| Redocly CLI | 2.57.0 | Lint del contrato actual |
+| Spectral CLI | 6.16.3 | Lint del contrato actual |
+| Prism | 5.16.0 | Mock histórico E2 |
 
-Evidencias de accesibilidad del prototipo: [`docs/evidence/e2-lighthouse.md`](./docs/evidence/e2-lighthouse.md).
+Evidencias de accesibilidad del prototipo E2: [`docs/evidence/e2-lighthouse.md`](./docs/evidence/e2-lighthouse.md).
 
 ---
 
