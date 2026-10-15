@@ -80,7 +80,7 @@ info:
     - 403 → FORBIDDEN
     - 404 → RESOURCE_NOT_FOUND
     - 409 → IDEMPOTENCY_CONFLICT, INVALID_ORDER_STATE, PRICE_CHANGED,
-      RESOURCE_IN_USE, and other current-resource state conflicts
+      RESOURCE_IN_USE, CUSTOMER_PROFILE_REQUIRED, and other current-resource state conflicts
     - 422 → VALIDATION_ERROR, CART_EMPTY, INSUFFICIENT_STOCK,
       RESERVATION_EXPIRED
     - 502 → PAYMENT_PROVIDER_ERROR for applicable upstream provider failures
@@ -889,8 +889,9 @@ paths:
       operationId: getCart
       summary: Get current cart
       description: |
-        Returns the authenticated user's active cart, including line items,
-        totals, currency, and optional expiration of the cart session/reservation window.
+        Returns the authenticated CUSTOMER's active cart, including line items,
+        totals, currency, and optional expiration of the cart reservation window.
+        Requires a linked Customer profile; ADMIN callers receive 403.
       security:
         - cookieAuth: []
       responses:
@@ -905,6 +906,21 @@ paths:
                   $ref: "#/components/examples/CartWithBearings"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Customer profile required for cart operations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                customerProfileRequired:
+                  value:
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use the cart.
+                    details: {}
+                    trace_id: "trace-synth-0409c"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -945,8 +961,23 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Customer profile required for cart operations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                customerProfileRequired:
+                  value:
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use the cart.
+                    details: {}
+                    trace_id: "trace-synth-0409c"
         "422":
           description: |
             Validation or stock/reservation constraint failed
@@ -1005,8 +1036,23 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Customer profile required for cart operations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                customerProfileRequired:
+                  value:
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use the cart.
+                    details: {}
+                    trace_id: "trace-synth-0409c"
         "422":
           description: |
             Validation or stock/reservation constraint failed
@@ -1039,8 +1085,23 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Customer profile required for cart operations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+              examples:
+                customerProfileRequired:
+                  value:
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use the cart.
+                    details: {}
+                    trace_id: "trace-synth-0409c"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -2030,7 +2091,7 @@ components:
         HTTP mapping preference: MALFORMED_REQUEST / INVALID_WEBHOOK_SIGNATURE→400,
         UNAUTHENTICATED→401, FORBIDDEN→403,
         RESOURCE_NOT_FOUND→404; IDEMPOTENCY_CONFLICT / INVALID_ORDER_STATE /
-        PRICE_CHANGED / RESOURCE_IN_USE→409; VALIDATION_ERROR / CART_EMPTY / INSUFFICIENT_STOCK /
+        PRICE_CHANGED / RESOURCE_IN_USE / CUSTOMER_PROFILE_REQUIRED→409; VALIDATION_ERROR / CART_EMPTY / INSUFFICIENT_STOCK /
         RESERVATION_EXPIRED→422; PAYMENT_PROVIDER_ERROR→502 when upstream.
         DUPLICATE_WEBHOOK_EVENT is informational/internal — duplicate webhook
         deliveries still return HTTP 200 acknowledgement and must not drive
@@ -2042,6 +2103,7 @@ components:
         - FORBIDDEN
         - RESOURCE_NOT_FOUND
         - RESOURCE_IN_USE
+        - CUSTOMER_PROFILE_REQUIRED
         - CART_EMPTY
         - INSUFFICIENT_STOCK
         - RESERVATION_EXPIRED
@@ -2505,7 +2567,11 @@ components:
         available_quantity:
           type: integer
           minimum: 0
-          description: Availability observed when the line was last validated.
+          description: |
+            Maximum quantity currently reachable for this line:
+            product stock minus ACTIVE non-expired reservations belonging to
+            OTHER cart lines. The line's own ACTIVE reservation is not
+            subtracted twice.
         reservation_expires_at:
           type: ["string", "null"]
           format: date-time
