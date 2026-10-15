@@ -129,7 +129,7 @@ históricos. PostgreSQL permitiría un índice único parcial
 |---|---|---|---|---|---|
 | id | UUID | No | Sin valor por defecto (lo genera la aplicación) | PK | Identificador de la línea |
 | cart_id | UUID | No | Sin valor por defecto | FK → `carts.id`; UNIQUE con `product_id` | Carrito dueño |
-| product_id | UUID | No | Sin valor por defecto | Referencia externa a Product; UNIQUE con `cart_id` | Producto del dominio de inventario |
+| product_id | UUID | No | Sin valor por defecto | FK → `products.id` (E3); UNIQUE con `cart_id` | Producto del catálogo local MVP |
 | quantity | INTEGER | No | Sin valor por defecto | CHECK (`quantity > 0`) | Cantidad solicitada |
 | created_at / updated_at | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | — | Campos de control |
 
@@ -144,7 +144,7 @@ cambio de precio (`PRICE_CHANGED`) se detecta al validar el checkout.
 | cart_id | UUID | No | Sin valor por defecto | FK → `carts.id` | Carrito de origen |
 | cart_item_id | UUID | Sí | NULL | FK → `cart_items.id` | Línea asociada |
 | order_id | UUID | Sí | NULL | FK → `orders.id` | Se llena al convertir el carrito en orden |
-| product_id | UUID | No | Sin valor por defecto | Referencia externa a Product | Producto reservado |
+| product_id | UUID | No | Sin valor por defecto | FK → `products.id` (E3) | Producto reservado |
 | quantity | INTEGER | No | Sin valor por defecto | CHECK (`quantity > 0`) | Unidades apartadas |
 | status | VARCHAR(20) | No | `'ACTIVE'` | CHECK IN (`ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED`) | Estado de la reserva |
 | expires_at | TIMESTAMPTZ | No | Sin valor por defecto | — | Caducidad de la reserva |
@@ -207,7 +207,7 @@ Son reglas de dominio, no triggers.
 |---|---|---|---|---|---|
 | id | UUID | No | Sin valor por defecto (lo genera la aplicación) | PK | Identificador |
 | order_id | UUID | No | Sin valor por defecto | FK → `orders.id` | Orden dueña |
-| product_id | UUID | No | Sin valor por defecto | Referencia externa a Product | Correlación con el catálogo |
+| product_id | UUID | No | Sin valor por defecto | FK → `products.id` (E3) | Correlación con el catálogo local |
 | sku | VARCHAR(64) | No | Sin valor por defecto | — | Snapshot del SKU |
 | product_name | VARCHAR(255) | No | Sin valor por defecto | — | Snapshot del nombre |
 | quantity | INTEGER | No | Sin valor por defecto | CHECK (`quantity > 0`) | Cantidad comprada |
@@ -257,25 +257,56 @@ tokens del instrumento de pago.
 | order_id | UUID | Sí | NULL | FK → `orders.id` | Correlación con la orden, cuando se resuelve |
 | payment_id | UUID | Sí | NULL | FK → `payments.id` | Correlación con el pago, cuando se resuelve |
 | created_at / updated_at | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | — | Campos de control |
+### Category y Product (adaptador local E3)
 
-### Product (frontera externa)
+#### Historia E2 / arquitectura futura (ADR-E2-007)
 
-Project Rotor **no** crea tablas de productos, existencias ni bodegas. El
-producto pertenece al dominio de inventario existente y se referencia por
-UUID. Estos son los datos que Project Rotor consume a través de la API de
-catálogo (`ProductSummary`); no se persisten localmente:
+En Entrega 2, Product se concibió como **frontera de integración**: el
+inventario (productos, existencias, bodegas) vivía fuera de Project Rotor y
+`product_id` era una referencia conceptual por UUID **sin** FK local. Esa
+decisión permanece como modelo conceptual futuro: el origen del catálogo
+puede volver a ser un dominio externo sin cambiar el contrato público
+(`ProductSummary`).
 
-| Dato consumido | Tipo en la API | Uso en Project Rotor |
+#### Implementación E3 / MVP actual (ADR-E3-001)
+
+En Entrega 3 el catálogo se materializa con un **adaptador local
+PostgreSQL persistente y sustituible**:
+
+| Tabla | Rol físico en E3 |
+|---|---|
+| `categories` | Categorías del catálogo local MVP |
+| `products` | Productos del catálogo local MVP |
+
+Ambas tablas **existen** en la base. Las FK locales son:
+
+- `products.category_id → categories.id`
+- `cart_items.product_id → products.id`
+- `stock_reservations.product_id → products.id`
+- `order_items.product_id → products.id`
+
+No se crean tablas de existencias ni bodegas; el stock comercial del MVP
+usa `products.stock_quantity` (las reservas activas se restarán después
+en servicio de dominio). El adaptador local puede reemplazarse más
+adelante sin cambiar IDs ni el contrato de catálogo.
+
+#### Campos del contrato consumidos / persistidos en E3
+
+| Dato | Origen | Uso en Project Rotor |
 |---|---|---|
-| id | UUID | Valor de `product_id` en CartItem, StockReservation y OrderItem |
-| sku | string | Se copia como snapshot en OrderItem |
-| name | string | Se copia como snapshot (`product_name`) en OrderItem |
-| unit_price | MoneyAmount (decimal como texto) | Se fija como snapshot en OrderItem |
-| tax_rate | decimal como texto, opcional | Se fija como snapshot en OrderItem |
-| available_quantity | integer | Validación de cantidad; `available_quantity = quantity - reserved_quantity` |
+| id | `products.id` (UUID) | `product_id` en CartItem, StockReservation y OrderItem (FK local) |
+| sku | `products.sku` | Snapshot en OrderItem |
+| name | `products.name` | Snapshot (`product_name`) en OrderItem |
+| unit_price / price | `products.price` | Snapshot en OrderItem; precio vigente en carrito |
+| tax_rate | `products.tax_rate` | Snapshot en OrderItem |
+| available_quantity | derivado | `stock_quantity - reservas activas` (servicio futuro) |
+
+
 
 ---
 
+
+---
 ## Claves
 
 | Tipo | Tabla | Columnas | Propósito |
@@ -319,7 +350,8 @@ ninguno o muchos; **1..N** = uno o muchos.
 | Order — StockReservation | Una Order tiene 0..N StockReservations | Una StockReservation tiene 0..1 Order | `order_id` se llena al crear la orden |
 | Order — WebhookEvent | Una Order tiene 0..N WebhookEvents | Un WebhookEvent tiene 0..1 Order | La correlación puede resolverse después de recibir el evento |
 | Payment — WebhookEvent | Un Payment tiene 0..N WebhookEvents | Un WebhookEvent tiene 0..1 Payment | Ídem |
-| Product — CartItem / StockReservation / OrderItem | Un Product aparece en 0..N filas | Cada fila referencia 1 Product | Referencia externa por UUID |
+| Category — Product | Una Category tiene 0..N Products | Un Product pertenece a 1 Category | Catálogo local E3 |
+| Product — CartItem / StockReservation / OrderItem | Un Product aparece en 0..N filas | Cada fila referencia 1 Product | FK local E3 → `products.id` (adaptador sustituible) |
 
 **Nota Order — OrderItem.** Por regla de negocio una orden tiene al menos
 una línea (el contrato exige `items` con `minItems: 1`). En el diagrama

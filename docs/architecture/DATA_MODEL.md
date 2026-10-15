@@ -23,24 +23,30 @@ desplegada.
 
 ## 1. Scope and inventory boundary
 
-Project Rotor **no** reimplementa en esta fase el núcleo completo de inventario.
+Project Rotor **no** reimplementa el núcleo completo de inventario empresarial
+(existencias multi-bodega, movimientos definitivos, ERP).
 
-El dominio transaccional asume conceptualmente que ya existen:
+### Historia E2 (ADR-E2-007 / ADR-DATA-006)
 
-- productos;
-- disponibilidad;
-- existencias;
-- reservas / movimientos de inventario (efectos definitivos).
+En el diseño E2, el catálogo se trató como **frontera de integración
+conceptual**: `product_id` era UUID sin FK local y este documento **no**
+definía tablas `products` / `stocks` / `warehouses`. Esa intención futura
+se conserva: el origen del catálogo puede volver a ser un dominio externo
+sin cambiar el contrato público.
 
-Esas capacidades se tratan como:
+### Implementación E3 (ADR-E3-001)
 
-**existing inventory domain / integration boundary**
+Para el MVP académico de Entrega 3 existe un **adaptador local PostgreSQL
+persistente y sustituible** con tablas reales:
 
-Este documento **no** define tablas `products`, `stocks`, `warehouses` ni
-`inventory_movements`. En el diagrama ER aparece `PRODUCT` solo como entidad
-externa referenciada por UUID (`product_id`).
+- `categories`
+- `products`
 
-La capa transaccional se relaciona con ese dominio mediante:
+En E3, `product_id` en `cart_items`, `stock_reservations` y `order_items`
+es **FK → `products.id`**. No se crean `stocks`, `warehouses` ni
+`inventory_movements`.
+
+La capa transaccional se relaciona con el catálogo mediante:
 
 | Momento | Interacción conceptual |
 |---------|------------------------|
@@ -67,7 +73,7 @@ id UUID PRIMARY KEY
 Alineado con OpenAPI (`format: uuid`). No se usan enteros autoincrementales
 para entidades transaccionales nuevas.
 
-Las referencias a inventario externo (`product_id`) también son UUID.
+Los `product_id` son UUID. En E3 son FK locales hacia `products.id` (adaptador sustituible); el modelo conceptual futuro (E2) permite origen externo sin cambiar el contrato.
 
 ---
 
@@ -75,12 +81,14 @@ Las referencias a inventario externo (`product_id`) también son UUID.
 
 | Entidad | Rol |
 |---------|-----|
+| `categories` | Categorías del catálogo local MVP (E3 / ADR-E3-001) |
+| `products` | Productos del adaptador local MVP (sustituible) |
 | `customers` | Comprador durable opcional (checkout) |
 | `carts` | Intención de compra (ACTIVE + históricos) |
-| `cart_items` | Líneas del carrito |
+| `cart_items` | Líneas del carrito (`product_id` FK → `products`) |
 | `stock_reservations` | Orquestación de apartado temporal (no stock físico) |
 | `orders` | Orden comercial + snapshot de comprador |
-| `order_items` | Snapshot histórico de líneas |
+| `order_items` | Snapshot histórico de líneas (`product_id` FK → `products`) |
 | `payments` | Intentos/resultados de pago sandbox (1 orden → N) |
 | `webhook_events` | Ingesta idempotente de eventos del proveedor |
 
@@ -192,7 +200,7 @@ INDEX (customer_id, status)
 |-------|-----------------|----------|-------------|-------------|
 | id | UUID | No | PK | Identificador de línea |
 | cart_id | UUID | No | FK → carts | Carrito dueño |
-| product_id | UUID | No | Ref. externa PRODUCT | Producto del dominio inventario |
+| product_id | UUID | No | FK → products.id (E3) | Producto del catálogo local MVP |
 | quantity | integer | No | CHECK > 0 | Cantidad solicitada |
 | created_at | datetime | No | | Alta |
 | updated_at | datetime | No | | Última actualización |
@@ -228,7 +236,7 @@ Es un registro **transaccional / orquestador** que relaciona:
 
 - cart;
 - cart_item;
-- product (`product_id` hacia el dominio externo);
+- product (`product_id` FK → `products.id` en E3; origen sustituible);
 - lifetime de la reserva (`expires_at`, estados);
 - order, cuando corresponda;
 - estado de la reserva (`ACTIVE` / `CONSUMED` / `RELEASED` / `EXPIRED`).
@@ -243,7 +251,7 @@ y el efecto definitivo al confirmar pago).
 | cart_id | UUID | No | FK → carts | Carrito origen |
 | cart_item_id | UUID | Sí | FK → cart_items | Línea asociada |
 | order_id | UUID | Sí | FK → orders | Trazabilidad post-conversión |
-| product_id | UUID | No | Ref. externa PRODUCT | Producto reservado |
+| product_id | UUID | No | FK → products.id (E3) | Producto reservado |
 | quantity | integer | No | CHECK > 0 | Unidades apartadas |
 | status | string enum | No | | Estado de la reserva |
 | expires_at | datetime | No | | Caducidad |
@@ -378,7 +386,7 @@ Snapshot histórico **inmutable** a nivel de negocio.
 |-------|-----------------|----------|-------------|-------------|
 | id | UUID | No | PK | Identificador |
 | order_id | UUID | No | FK → orders | Orden dueña |
-| product_id | UUID | No | Ref. externa PRODUCT | Correlación de catálogo |
+| product_id | UUID | No | FK → products.id (E3) | Correlación de catálogo local |
 | sku | string | No | | Snapshot SKU |
 | product_name | string | No | | Snapshot nombre |
 | quantity | integer | No | CHECK > 0 | Cantidad comprada |
@@ -643,19 +651,39 @@ Para `orders`, `order_items`, `payments`, `webhook_events`:
 
 ```mermaid
 erDiagram
+  CATEGORIES ||--o{ PRODUCTS : "classifies"
   CUSTOMERS o|--o{ CARTS : "owns_optional"
   CUSTOMERS o|--o{ ORDERS : "optional_ref"
   CARTS ||--o{ CART_ITEMS : "contains"
   CARTS ||--o{ STOCK_RESERVATIONS : "orchestrates"
   CART_ITEMS o|--o{ STOCK_RESERVATIONS : "line_optional"
-  CART_ITEMS }o--|| PRODUCT : "references"
-  STOCK_RESERVATIONS }o--|| PRODUCT : "references"
+  PRODUCTS ||--o{ CART_ITEMS : "listed_in"
+  PRODUCTS ||--o{ STOCK_RESERVATIONS : "reserved_in"
+  PRODUCTS ||--o{ ORDER_ITEMS : "snapshotted_in"
   ORDERS ||--o{ ORDER_ITEMS : "snapshots"
   ORDERS ||--o{ PAYMENTS : "attempts"
   ORDERS o|--o{ STOCK_RESERVATIONS : "retains_optional"
   ORDERS o|--o{ WEBHOOK_EVENTS : "correlated_optional"
   PAYMENTS o|--o{ WEBHOOK_EVENTS : "correlated_optional"
-  ORDER_ITEMS }o--|| PRODUCT : "references"
+
+  CATEGORIES {
+    uuid id PK
+    string name
+    string slug UK
+    boolean is_active
+  }
+
+  PRODUCTS {
+    uuid id PK
+    uuid category_id FK
+    string sku UK
+    string name
+    decimal price
+    string currency
+    decimal tax_rate
+    int stock_quantity
+    boolean is_active
+  }
 
   CUSTOMERS {
     uuid id PK
@@ -672,7 +700,7 @@ erDiagram
   CART_ITEMS {
     uuid id PK
     uuid cart_id FK
-    uuid product_id
+    uuid product_id FK
     int quantity
   }
 
@@ -681,7 +709,7 @@ erDiagram
     uuid cart_id FK
     uuid cart_item_id FK
     uuid order_id FK
-    uuid product_id
+    uuid product_id FK
     string status
   }
 
@@ -700,7 +728,7 @@ erDiagram
   ORDER_ITEMS {
     uuid id PK
     uuid order_id FK
-    uuid product_id
+    uuid product_id FK
     decimal unit_price
     decimal line_total
   }
@@ -720,10 +748,6 @@ erDiagram
     uuid order_id FK
     uuid payment_id FK
   }
-
-  PRODUCT {
-    uuid id PK "existing inventory domain / integration boundary"
-  }
 ```
 
 Cardinalidades:
@@ -735,7 +759,7 @@ Cardinalidades:
 - `ORDERS ||--o{ ORDER_ITEMS` / `ORDERS ||--o{ PAYMENTS` — una orden, muchos ítems e intentos de pago.
 - `ORDERS o|--o{ STOCK_RESERVATIONS` — `order_id` nullable hasta la conversión del carrito.
 - `ORDERS o|--o{ WEBHOOK_EVENTS` / `PAYMENTS o|--o{ WEBHOOK_EVENTS` — `order_id` / `payment_id` nullable hasta resolver correlación.
-- `PRODUCT` externo (integration boundary).
+- `CATEGORY` → `PRODUCT` (adaptador local E3); `PRODUCT` referenciado por FK desde cart/reservation/order items. Origen del catálogo sustituible (ADR-E2-007 / ADR-E3-001).
 
 ---
 
@@ -803,7 +827,7 @@ Cardinalidades:
 
 - **Context:** No ERP completo en esta fase.
 - **Decision:** `stock_reservations` orquesta; inventario externo valida/aplica.
-- **Consequence:** Sin tablas product/stock/warehouse aquí.
+- **Consequence (E2 histórico):** sin tablas product/stock/warehouse en el diseño E2. **E3 (ADR-E3-001):** existen `categories`/`products` como adaptador local; siguen sin existir `stocks`/`warehouses`.
 
 ### ADR-DATA-007 No card/payment secrets stored
 
@@ -843,9 +867,10 @@ Cardinalidades:
 in PostgreSQL (`categories`, `products`) so the academic MVP can persist and
 CRUD catalog data without depending on an external enterprise inventory system.
 
-- Conceptual future model (ADR-E2-007): inventory remains an integration boundary.
+- Conceptual future model (ADR-E2-007 / ADR-DATA-006): inventory remains an
+  integration boundary; the catalog origin is replaceable.
 - E3 implementation: local tables satisfy the public catalog contract; later the
   origin can be swapped without changing domain IDs or API shapes.
-- In E3 migrations, `product_id` columns gain FK → `products.id`.
-- `modelo-datos.png` / mermaid may still show PRODUCT as external until final
-  diagram integration; treat that as pending visual sync, not a model conflict.
+- In E3, `product_id` columns are FK → `products.id`.
+- The ER diagram in §17 and `docs/modelo-datos.mmd` / `.png` reflect the E3
+  local catalog (Category + Product), not an external-only Product stub.
