@@ -228,6 +228,23 @@ class CreateOrderTest extends CheckoutTestCase
         );
     }
 
+    public function test_extra_top_level_field_on_create_is_422_without_order(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $product = $this->createProduct(null, ['stock_quantity' => 2]);
+        $this->postJson('/api/cart/items', ['product_id' => $product->id, 'quantity' => 1])->assertOk();
+
+        $payload = $this->checkoutPayload();
+        $payload['total'] = '1.00';
+
+        $this->assertApiError(
+            $this->postJson('/api/orders', $payload, ['Idempotency-Key' => 'order-extra-field-1']),
+            422,
+            'VALIDATION_ERROR',
+        );
+        $this->assertSame(0, Order::query()->count());
+    }
+
     public function test_get_status_cancel_and_ownership(): void
     {
         ['user' => $owner] = $this->createCustomerActor();

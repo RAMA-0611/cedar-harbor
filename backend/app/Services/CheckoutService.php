@@ -21,7 +21,7 @@ class CheckoutService
      * Request field validation is handled by CheckoutRequest (422).
      *
      * @param  array{customer: array<string, string>, delivery: array{mode: string, address: ?string}}  $payload
-     * @return array{valid: bool, cart: array<string, mixed>, validation_errors: list<array{code: string, message: string}>, totals: array{subtotal: string, tax_total: string, total: string, currency: string}}
+     * @return array{valid: bool, cart: array<string, mixed>|null, validation_errors: list<array{code: string, message: string}>, totals: array{subtotal: string, tax_total: string, total: string, currency: string}}
      */
     public function validate(User $user, array $payload): array
     {
@@ -31,7 +31,7 @@ class CheckoutService
             $cart = $this->carts->findActiveCart($customer);
 
             if ($cart === null) {
-                return $this->invalidEmptyResult($this->emptyCartRepresentation());
+                return $this->invalidEmptyResult(null);
             }
 
             $this->carts->expireStaleReservationsForCart($cart);
@@ -203,26 +203,10 @@ class CheckoutService
     }
 
     /**
-     * @return array<string, mixed>
+     * @param  array<string, mixed>|null  $cart
+     * @return array{valid: bool, cart: array<string, mixed>|null, validation_errors: list<array{code: string, message: string}>, totals: array{subtotal: string, tax_total: string, total: string, currency: string}}
      */
-    private function emptyCartRepresentation(): array
-    {
-        return [
-            'id' => '00000000-0000-4000-8000-000000000000',
-            'items' => [],
-            'subtotal' => '0.00',
-            'tax_total' => '0.00',
-            'total' => '0.00',
-            'currency' => 'COP',
-            'expires_at' => null,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $cart
-     * @return array{valid: bool, cart: array<string, mixed>, validation_errors: list<array{code: string, message: string}>, totals: array{subtotal: string, tax_total: string, total: string, currency: string}}
-     */
-    private function invalidEmptyResult(array $cart): array
+    private function invalidEmptyResult(?array $cart): array
     {
         return [
             'valid' => false,

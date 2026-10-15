@@ -1201,7 +1201,19 @@ paths:
                       tax_total: "17100.00"
                       total: "107100.00"
                       currency: "COP"
-                invalid:
+                noActiveCart:
+                  value:
+                    valid: false
+                    cart: null
+                    validation_errors:
+                      - code: CART_EMPTY
+                        message: Cart has no items.
+                    totals:
+                      subtotal: "0.00"
+                      tax_total: "0.00"
+                      total: "0.00"
+                      currency: "COP"
+                emptyActiveCart:
                   value:
                     valid: false
                     cart:
@@ -1215,12 +1227,39 @@ paths:
                     validation_errors:
                       - code: CART_EMPTY
                         message: Cart has no items.
-                      - code: RESERVATION_EXPIRED
-                        message: One or more reservations have expired.
                     totals:
                       subtotal: "0.00"
                       tax_total: "0.00"
                       total: "0.00"
+                      currency: "COP"
+                reservationExpired:
+                  value:
+                    valid: false
+                    cart:
+                      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                      items:
+                        - id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                          product_id: "11111111-1111-4111-8111-111111111111"
+                          sku: "ROTOR-BRG-6205"
+                          name: "Rodamiento industrial"
+                          quantity: 1
+                          unit_price: "45000.00"
+                          tax_amount: "8550.00"
+                          line_total: "53550.00"
+                          available_quantity: 24
+                          reservation_expires_at: null
+                      subtotal: "45000.00"
+                      tax_total: "8550.00"
+                      total: "53550.00"
+                      currency: "COP"
+                      expires_at: null
+                    validation_errors:
+                      - code: RESERVATION_EXPIRED
+                        message: One or more reservations have expired.
+                    totals:
+                      subtotal: "45000.00"
+                      tax_total: "8550.00"
+                      total: "53550.00"
                       currency: "COP"
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -2782,7 +2821,12 @@ components:
         valid:
           type: boolean
         cart:
-          $ref: "#/components/schemas/Cart"
+          description: |
+            ACTIVE cart representation when one exists (including empty carts).
+            `null` when the customer has no ACTIVE cart (checkout does not create one).
+          oneOf:
+            - $ref: "#/components/schemas/Cart"
+            - type: "null"
         validation_errors:
           type: array
           items:

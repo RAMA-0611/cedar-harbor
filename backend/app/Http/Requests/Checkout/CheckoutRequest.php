@@ -19,13 +19,13 @@ class CheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer' => ['required', 'array'],
+            'customer' => ['required', 'array:name,email,phone,document_type,document_number'],
             'customer.name' => ['required', 'string', 'max:160'],
             'customer.email' => ['required', 'email', 'max:254'],
             'customer.phone' => ['required', 'string', 'max:30'],
             'customer.document_type' => ['required', 'string', 'max:10'],
             'customer.document_number' => ['required', 'string', 'max:30'],
-            'delivery' => ['required', 'array'],
+            'delivery' => ['required', 'array:mode,address'],
             'delivery.mode' => ['required', 'in:PICKUP,COORDINATED_SHIPPING'],
             'delivery.address' => [
                 'nullable',
@@ -39,6 +39,10 @@ class CheckoutRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            foreach (array_diff(array_keys($this->all()), ['customer', 'delivery']) as $key) {
+                $validator->errors()->add($key, 'This field is not allowed.');
+            }
+
             if ($this->input('delivery.mode') !== 'COORDINATED_SHIPPING') {
                 return;
             }

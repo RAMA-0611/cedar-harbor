@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Checkout;
 
+use App\Models\Cart;
 use App\Models\StockReservation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -25,15 +26,82 @@ class CheckoutValidationTest extends CheckoutTestCase
             ->assertJsonPath('totals.currency', 'COP');
     }
 
-    public function test_empty_cart_returns_200_valid_false_cart_empty(): void
+    public function test_no_active_cart_returns_cart_null_without_creating_row(): void
     {
-        $this->actingAsCustomerWithProfile();
+        ['customer' => $customer] = $this->actingAsCustomerWithProfile();
+        $before = Cart::query()->where('customer_id', $customer->id)->count();
 
         $response = $this->postJson('/api/checkout/validate', $this->checkoutPayload());
 
         $response->assertOk()
             ->assertJsonPath('valid', false)
+            ->assertJsonPath('cart', null)
+            ->assertJsonPath('validation_errors.0.code', 'CART_EMPTY')
+            ->assertJsonPath('totals.subtotal', '0.00')
+            ->assertJsonPath('totals.currency', 'COP');
+
+        $this->assertSame($before, Cart::query()->where('customer_id', $customer->id)->count());
+        $this->assertSame(0, Cart::query()->where('customer_id', $customer->id)->count());
+    }
+
+    public function test_active_empty_cart_returns_real_cart_id(): void
+    {
+        ['customer' => $customer] = $this->actingAsCustomerWithProfile();
+        $cart = $this->getJson('/api/cart')->assertOk();
+        $cartId = $cart->json('id');
+
+        $response = $this->postJson('/api/checkout/validate', $this->checkoutPayload());
+
+        $response->assertOk()
+            ->assertJsonPath('valid', false)
+            ->assertJsonPath('cart.id', $cartId)
+            ->assertJsonPath('cart.items', [])
             ->assertJsonPath('validation_errors.0.code', 'CART_EMPTY');
+
+        $this->assertDatabaseHas('carts', [
+            'id' => $cartId,
+            'customer_id' => $customer->id,
+            'status' => 'ACTIVE',
+        ]);
+    }
+
+    public function test_extra_top_level_field_is_rejected(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $payload = $this->checkoutPayload();
+        $payload['total'] = '1.00';
+
+        $this->assertApiError(
+            $this->postJson('/api/checkout/validate', $payload),
+            422,
+            'VALIDATION_ERROR',
+        );
+    }
+
+    public function test_extra_customer_field_is_rejected(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $payload = $this->checkoutPayload();
+        $payload['customer']['admin'] = true;
+
+        $this->assertApiError(
+            $this->postJson('/api/checkout/validate', $payload),
+            422,
+            'VALIDATION_ERROR',
+        );
+    }
+
+    public function test_extra_delivery_field_is_rejected(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $payload = $this->checkoutPayload();
+        $payload['delivery']['carrier'] = 'X';
+
+        $this->assertApiError(
+            $this->postJson('/api/checkout/validate', $payload),
+            422,
+            'VALIDATION_ERROR',
+        );
     }
 
     public function test_expired_reservation_returns_200_valid_false(): void
