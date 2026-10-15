@@ -22,9 +22,10 @@ class AdminProductResource extends JsonResource
             'brand' => $this->brand,
             'condition' => $this->condition,
             'unit' => $this->unit,
-            'price' => number_format((float) $this->price, 2, '.', ''),
+            // Eloquent decimal:2 / decimal:4 casts — keep as strings, never float.
+            'price' => (string) $this->price,
             'currency' => $this->currency,
-            'tax_rate' => number_format((float) $this->tax_rate, 4, '.', ''),
+            'tax_rate' => (string) $this->tax_rate,
             'stock_quantity' => (int) $this->stock_quantity,
             'is_active' => (bool) $this->is_active,
             'created_at' => optional($this->created_at)?->toISOString(),

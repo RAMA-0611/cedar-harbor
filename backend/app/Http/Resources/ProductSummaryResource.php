@@ -20,10 +20,11 @@ class ProductSummaryResource extends JsonResource
             'id' => $this->id,
             'sku' => $this->sku,
             'name' => $this->name,
-            'unit_price' => number_format((float) $this->price, 2, '.', ''),
+            // Eloquent decimal:2 / decimal:4 casts — keep as strings, never float.
+            'unit_price' => (string) $this->price,
             'currency' => $this->currency,
             'available_quantity' => $available,
-            'tax_rate' => number_format((float) $this->tax_rate, 4, '.', ''),
+            'tax_rate' => (string) $this->tax_rate,
         ];
     }
 }

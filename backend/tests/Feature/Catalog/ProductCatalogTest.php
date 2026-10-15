@@ -83,6 +83,35 @@ class ProductCatalogTest extends TestCase
         $this->assertSame('0.1900', $response->json('data.0.tax_rate'));
     }
 
+    public function test_product_summary_preserves_decimal18_precision_as_string(): void
+    {
+        // DECIMAL(18,2) upper bound — would lose digits if cast through float.
+        $price = '9999999999999999.99';
+        $taxRate = '0.9999';
+
+        $product = $this->createProduct(null, [
+            'sku' => 'SKU-DEC-PUB',
+            'name' => 'Decimal Precision Product',
+            'price' => $price,
+            'tax_rate' => $taxRate,
+        ]);
+
+        $list = $this->getJson('/api/products?q=SKU-DEC-PUB');
+        $list->assertOk()
+            ->assertJsonPath('data.0.unit_price', $price)
+            ->assertJsonPath('data.0.tax_rate', $taxRate);
+        $this->assertIsString($list->json('data.0.unit_price'));
+        $this->assertNotSame((string) (float) $price, $list->json('data.0.unit_price'));
+
+        $detail = $this->getJson('/api/products/'.$product->id);
+        $detail->assertOk()
+            ->assertJsonPath('unit_price', $price)
+            ->assertJsonPath('tax_rate', $taxRate);
+        $this->assertIsString($detail->json('unit_price'));
+        $this->assertSame($price, $detail->json('unit_price'));
+        $this->assertNotSame((string) (float) $price, $detail->json('unit_price'));
+    }
+
     public function test_search_by_name_and_sku(): void
     {
         $category = $this->createCategory();

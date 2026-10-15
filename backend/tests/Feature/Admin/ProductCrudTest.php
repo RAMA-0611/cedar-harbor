@@ -57,6 +57,32 @@ class ProductCrudTest extends AdminTestCase
         $this->assertDatabaseMissing('products', ['id' => $id]);
     }
 
+    public function test_admin_product_preserves_decimal18_precision_as_string(): void
+    {
+        $this->actingAsAdmin();
+
+        // DECIMAL(18,2) upper bound — would lose digits if cast through float.
+        $price = '9999999999999999.99';
+        $taxRate = '0.9999';
+
+        $product = $this->createProduct(null, [
+            'sku' => 'SKU-DEC-ADMIN',
+            'price' => $price,
+            'tax_rate' => $taxRate,
+        ]);
+
+        $response = $this->getJson('/api/admin/products/'.$product->id);
+
+        $response->assertOk()
+            ->assertJsonPath('data.price', $price)
+            ->assertJsonPath('data.tax_rate', $taxRate);
+
+        $this->assertIsString($response->json('data.price'));
+        $this->assertIsString($response->json('data.tax_rate'));
+        $this->assertSame($price, $response->json('data.price'));
+        $this->assertNotSame((string) (float) $price, $response->json('data.price'));
+    }
+
     public function test_duplicate_sku_returns_validation_error(): void
     {
         $this->actingAsAdmin();
