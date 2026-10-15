@@ -1111,21 +1111,31 @@ paths:
       operationId: validateCheckout
       summary: Validate checkout prerequisites
       description: |
-        Validates the cart and buyer payload before order creation:
-        - cart exists;
-        - cart is not empty;
-        - availability is re-checked
-          (`available_quantity = quantity - reserved_quantity`);
-        - reservations still valid;
-        - prices still match catalog snapshot expectations;
-        - basic customer data;
-        - delivery mode (PICKUP or COORDINATED_SHIPPING) and, for
-          COORDINATED_SHIPPING, a non-blank delivery address.
+        Soft preflight for checkout before order creation.
 
+        Business outcomes are always returned as HTTP 200 with
+        `valid: true|false` and optional `validation_errors`
+        (`CART_EMPTY`, `RESERVATION_EXPIRED`, `INSUFFICIENT_STOCK`).
+
+        HTTP 422 is reserved for malformed/invalid request fields
+        (`VALIDATION_ERROR`) on `CheckoutRequest` (customer/delivery).
+
+        E3 MVP pricing policy: cart and checkout use the current server
+        catalog price (`Product.price`). There is no client-supplied expected
+        price and cart lines do not store a price snapshot, so this endpoint
+        does **not** emit `PRICE_CHANGED`. The `PRICE_CHANGED` ErrorCode remains
+        reserved for a future negotiated/snapshot price flow.
+
+        Checks performed when a CUSTOMER profile and ACTIVE cart exist:
+        - cart is not empty;
+        - each line has a matching ACTIVE non-expired reservation;
+        - ACTIVE reservation totals do not exceed product stock;
+        - delivery mode (PICKUP or COORDINATED_SHIPPING) and, for
+          COORDINATED_SHIPPING, a non-blank delivery address (request validation).
+
+        Does not create an empty ACTIVE cart when none exists.
+        Does not extend reservation expiry.
         Does not model carriers or complex logistics.
-        Constraint failures such as `CART_EMPTY`, `INSUFFICIENT_STOCK`,
-        and `RESERVATION_EXPIRED` are reported under HTTP 422.
-        `PRICE_CHANGED` is reported under HTTP 409 as a resource/state conflict.
       security:
         - cookieAuth: []
       requestBody:
@@ -1216,27 +1226,31 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           description: |
-            Resource/state conflict such as `PRICE_CHANGED` between cart
-            snapshot and current catalog prices.
+            Authenticated CUSTOMER without a linked customer profile
+            (`CUSTOMER_PROFILE_REQUIRED`).
+
+            `PRICE_CHANGED` is reserved for a future price-negotiation flow and
+            is not emitted by the E3 MVP checkout validate path.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
               examples:
-                priceChanged:
+                customerProfileRequired:
                   value:
-                    code: PRICE_CHANGED
-                    message: One or more cart unit prices no longer match the catalog.
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use checkout.
                     details: {}
-                    trace_id: "trace-synth-0007"
+                    trace_id: "trace-synth-0409d"
         "422":
           description: |
-            Request or business validation failed
-            (`VALIDATION_ERROR`, `CART_EMPTY`, `INSUFFICIENT_STOCK`,
-            `RESERVATION_EXPIRED`). Soft validation outcomes may also appear
-            in the 200 body via `validation_errors`.
+            Request field validation failed (`VALIDATION_ERROR`).
+            Business preflight failures for this operation use HTTP 200 with
+            `valid: false` and `validation_errors` instead.
           content:
             application/json:
               schema:
@@ -1245,18 +1259,17 @@ paths:
                 invalidCustomer:
                   value:
                     code: VALIDATION_ERROR
-                    message: Buyer data is incomplete.
+                    message: The given data was invalid.
                     details:
-                      fields:
-                        customer.email: ["must be a valid email address"]
-                        customer.document_number: ["is required"]
+                      errors:
+                        customer.email: ["The customer.email field must be a valid email address."]
                     trace_id: "trace-synth-0010"
                 missingDeliveryAddress:
                   value:
                     code: VALIDATION_ERROR
-                    message: Validation failed.
+                    message: The given data was invalid.
                     details:
-                      fields:
+                      errors:
                         delivery.address: ["is required for coordinated shipping"]
                     trace_id: "trace-synth-0015"
         "500":
@@ -1268,18 +1281,26 @@ paths:
       operationId: createOrder
       summary: Create order from validated cart
       description: |
-        Creates an order from the authenticated user's cart after checkout
-        validation rules are satisfied.
+        Creates an order from the authenticated CUSTOMER's ACTIVE cart.
 
-        Requires header `Idempotency-Key` to prevent duplicate orders on
-        client retries. Replaying the same key with the same payload must
-        return the original order; conflicting payloads with the same key
-        yield `IDEMPOTENCY_CONFLICT` (HTTP 409).
+        Successful responses use HTTP 201 with `status: PENDING_PAYMENT`
+        (including idempotent replays of the same key + same payload).
 
-        Order creation requires a still-valid stock reservation. On success
-        the order stores price snapshots on each line so totals do not depend
-        on later product price changes, and the reservation remains active
-        until payment outcome or expiry handling.
+        Requires header `Idempotency-Key`. Same key + same CheckoutRequest
+        fingerprint returns the original order without requiring an ACTIVE cart
+        (the first success converts the cart). Same key + different payload, or
+        the same key owned by another customer, yields `IDEMPOTENCY_CONFLICT`
+        (HTTP 409).
+
+        On success, within one transaction:
+        - Order + OrderItem commercial snapshots are persisted (server catalog
+          prices at creation time; client cannot supply prices);
+        - ACTIVE stock reservations are linked via `order_id` and remain
+          `ACTIVE` until payment outcome (CONSUMED) or cancel/expiry (RELEASED);
+        - cart status becomes `CONVERTED` (history retained).
+
+        `products.stock_quantity` is not decremented at order creation.
+        `PRICE_CHANGED` is not emitted in this MVP (no client expected price).
       security:
         - cookieAuth: []
       parameters:
@@ -1304,7 +1325,9 @@ paths:
                     address: "Calle Demo 12 # 34-56, Ciudad Rotor"
       responses:
         "201":
-          description: Order created.
+          description: |
+            Order created as `PENDING_PAYMENT`, or an idempotent replay of the
+            same `Idempotency-Key` + same payload returning the original order.
           content:
             application/json:
               schema:
@@ -1313,7 +1336,7 @@ paths:
                 created:
                   $ref: "#/components/examples/OrderPendingPayment"
         "400":
-          description: Malformed body or missing `Idempotency-Key` header.
+          description: Malformed body or missing/invalid `Idempotency-Key` header.
           content:
             application/json:
               schema:
@@ -1322,16 +1345,21 @@ paths:
                 missingIdempotencyKey:
                   value:
                     code: MALFORMED_REQUEST
-                    message: Idempotency-Key header is required.
+                    message: Idempotency-Key header is required and must be 8-128 characters.
                     details:
                       header: Idempotency-Key
                     trace_id: "trace-synth-0400b"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           description: |
             Resource/state conflict:
-            `IDEMPOTENCY_CONFLICT`, `INVALID_ORDER_STATE`, or `PRICE_CHANGED`.
+            `IDEMPOTENCY_CONFLICT` or `CUSTOMER_PROFILE_REQUIRED`.
+
+            `PRICE_CHANGED` remains a reserved ErrorCode for future flows and is
+            not emitted by E3 MVP order creation.
           content:
             application/json:
               schema:
@@ -1341,14 +1369,15 @@ paths:
                   value:
                     code: IDEMPOTENCY_CONFLICT
                     message: Idempotency-Key was reused with a different payload.
-                    details: {}
+                    details:
+                      reason: payload_mismatch
                     trace_id: "trace-synth-0002"
-                priceChanged:
+                customerProfileRequired:
                   value:
-                    code: PRICE_CHANGED
-                    message: One or more cart unit prices no longer match the catalog.
+                    code: CUSTOMER_PROFILE_REQUIRED
+                    message: A customer profile is required to use the cart.
                     details: {}
-                    trace_id: "trace-synth-0008"
+                    trace_id: "trace-synth-0409e"
         "422":
           description: |
             Validation or commerce constraint failed:
@@ -1368,9 +1397,9 @@ paths:
                 missingDeliveryAddress:
                   value:
                     code: VALIDATION_ERROR
-                    message: Validation failed.
+                    message: The given data was invalid.
                     details:
-                      fields:
+                      errors:
                         delivery.address: ["is required for coordinated shipping"]
                     trace_id: "trace-synth-0016"
         "500":
@@ -1448,9 +1477,11 @@ paths:
       summary: Cancel order when allowed
       description: |
         Cancels an order only when the state machine permits it
-        (typically DRAFT or PENDING_PAYMENT → CANCELLED). Invalid transitions
-        return `INVALID_ORDER_STATE`. Successful cancellation should release
-        reservations when applicable.
+        (DRAFT or PENDING_PAYMENT → CANCELLED). Invalid transitions return
+        `INVALID_ORDER_STATE` (HTTP 409). Successful cancellation sets
+        `cancelled_at` and releases linked stock reservations
+        (`ACTIVE` → `RELEASED` with `released_at`). Product `stock_quantity`
+        is not modified. Orders belonging to another customer return 404.
       security:
         - cookieAuth: []
       parameters:
