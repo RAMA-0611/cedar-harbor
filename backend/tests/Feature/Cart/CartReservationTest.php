@@ -79,6 +79,112 @@ class CartReservationTest extends CartTestCase
         );
     }
 
+    public function test_get_cart_clears_expires_at_when_all_reservations_expire(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $product = $this->createProduct(null, ['stock_quantity' => 5]);
+
+        $add = $this->postJson('/api/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $cartId = $add->json('id');
+        $itemId = $add->json('items.0.id');
+        $staleExpiry = now()->subMinutes(10);
+
+        StockReservation::query()
+            ->where('cart_item_id', $itemId)
+            ->where('status', 'ACTIVE')
+            ->update(['expires_at' => $staleExpiry]);
+
+        \App\Models\Cart::query()->whereKey($cartId)->update([
+            'expires_at' => $staleExpiry,
+        ]);
+
+        $get = $this->getJson('/api/cart');
+        $get->assertOk()
+            ->assertJsonPath('expires_at', null);
+
+        $this->assertDatabaseHas('stock_reservations', [
+            'cart_item_id' => $itemId,
+            'status' => 'EXPIRED',
+        ]);
+        $this->assertDatabaseHas('carts', [
+            'id' => $cartId,
+            'expires_at' => null,
+        ]);
+    }
+
+    public function test_get_cart_keeps_max_active_expiry_when_partially_expired(): void
+    {
+        $this->actingAsCustomerWithProfile();
+        $productA = $this->createProduct(null, ['sku' => 'EXP-A', 'stock_quantity' => 5]);
+        $productB = $this->createProduct(null, ['sku' => 'EXP-B', 'stock_quantity' => 5]);
+
+        $addA = $this->postJson('/api/cart/items', [
+            'product_id' => $productA->id,
+            'quantity' => 1,
+        ])->assertOk();
+        $cartId = $addA->json('id');
+        $itemA = $addA->json('items.0.id');
+
+        $addB = $this->postJson('/api/cart/items', [
+            'product_id' => $productB->id,
+            'quantity' => 1,
+        ])->assertOk();
+        $itemB = collect($addB->json('items'))->firstWhere('product_id', $productB->id)['id'];
+
+        $past = now()->subMinutes(5);
+        $future = now()->addMinutes(25);
+
+        StockReservation::query()
+            ->where('cart_item_id', $itemA)
+            ->where('status', 'ACTIVE')
+            ->update(['expires_at' => $past]);
+
+        StockReservation::query()
+            ->where('cart_item_id', $itemB)
+            ->where('status', 'ACTIVE')
+            ->update(['expires_at' => $future]);
+
+        $expectedActiveExpiry = StockReservation::query()
+            ->where('cart_item_id', $itemB)
+            ->where('status', 'ACTIVE')
+            ->value('expires_at');
+
+        \App\Models\Cart::query()->whereKey($cartId)->update([
+            'expires_at' => $past,
+        ]);
+
+        $get = $this->getJson('/api/cart');
+        $get->assertOk();
+
+        $this->assertDatabaseHas('stock_reservations', [
+            'cart_item_id' => $itemA,
+            'status' => 'EXPIRED',
+        ]);
+        $this->assertDatabaseHas('stock_reservations', [
+            'cart_item_id' => $itemB,
+            'status' => 'ACTIVE',
+        ]);
+
+        $responseExpiry = $get->json('expires_at');
+        $this->assertNotNull($responseExpiry);
+
+        $dbExpiry = \App\Models\Cart::query()->whereKey($cartId)->value('expires_at');
+        $this->assertNotNull($dbExpiry);
+        $this->assertTrue($dbExpiry->isFuture());
+        $this->assertSame(
+            $expectedActiveExpiry->copy()->utc()->toISOString(),
+            $dbExpiry->copy()->utc()->toISOString(),
+        );
+        $this->assertSame(
+            $dbExpiry->copy()->utc()->toISOString(),
+            \Illuminate\Support\Carbon::parse($responseExpiry)->utc()->toISOString(),
+        );
+    }
+
     public function test_available_quantity_excludes_own_reservation(): void
     {
         $product = $this->createProduct(null, ['stock_quantity' => 10]);

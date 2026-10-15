@@ -38,6 +38,7 @@ class CartService
         return DB::transaction(function () use ($customer) {
             $cart = $this->resolveActiveCart($customer);
             $this->expireReservationsForCart($cart);
+            $this->refreshCartExpiry($cart);
 
             return $this->loadCart($cart->fresh());
         });
