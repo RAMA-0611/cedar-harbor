@@ -81,6 +81,90 @@ Estado al cierre de la Entrega 2:
 
 El prototipo usa 12 productos sintéticos locales (`web/datos/ejemplo.json`), guarda el carrito en el navegador y simula el pago. No se conecta todavía con la API.
 
+
+---
+
+## Entrega 3 — MVP backend
+
+Documentación interactiva (fuente única `api/openapi.yaml`):
+
+- UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- YAML servido: [http://127.0.0.1:8000/docs/openapi.yaml](http://127.0.0.1:8000/docs/openapi.yaml)
+
+### Requisitos
+
+- PHP 8.2+
+- Composer
+- PostgreSQL 16
+- Node.js solo donde aplique (herramientas OpenAPI opcionales vía `npx`)
+
+### Setup backend
+
+```bash
+cd backend
+composer install
+copy .env.example .env
+php artisan key:generate
+```
+
+Configurar PostgreSQL local `rotor` en `.env` (no versionar passwords):
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_DATABASE=rotor
+DB_USERNAME=rotor
+DB_PASSWORD=
+```
+
+```bash
+php artisan migrate:fresh --seed
+php artisan serve
+```
+
+Abrir `http://127.0.0.1:8000/docs`.
+
+### Endpoints E3 disponibles en main
+
+**Auth**
+
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+**Catalog**
+
+- `GET /api/products`
+- `GET /api/products/{id}`
+
+**Admin CRUD** (`auth:sanctum` + `role:ADMIN`)
+
+- `/api/admin/categories`
+- `/api/admin/products`
+- `/api/admin/customers`
+- `/api/admin/users`
+
+**Cart**
+
+- en integración mediante issue #6 (no afirmar disponibilidad hasta merge)
+
+### Credenciales
+
+No hay password demo fijado en seed.
+
+Ejemplos sintéticos de identidad (no garantizan existencia en seed):
+
+- `admin.demo@example.test`
+- `customer.demo@example.test`
+
+Crear usuarios reales con factories/admin API o seeders locales no versionados.
+
+### Evidencia
+
+- [`docs/evidence/e3-backend-validation.md`](./docs/evidence/e3-backend-validation.md)
+- [`docs/evidence/e3-demo-script.md`](./docs/evidence/e3-demo-script.md)
+
+
 ---
 
 ## Transactional flow
