@@ -62,9 +62,30 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 
 ## Project status
 
-Estado al cierre de la Entrega 2:
+### Estado actual — Entrega 3
 
 | Componente | Estado |
+|---|---|
+| PostgreSQL | IMPLEMENTADO |
+| Migraciones de dominio | IMPLEMENTADAS |
+| Laravel API | FUNCIONAL |
+| Sanctum | IMPLEMENTADO |
+| ApiError | IMPLEMENTADO |
+| Admin CRUD ×4 | IMPLEMENTADO |
+| Catálogo público | IMPLEMENTADO |
+| Carrito persistente | IMPLEMENTADO |
+| Reservas de stock | IMPLEMENTADAS |
+| Documentación interactiva (`/docs`) | IMPLEMENTADA |
+| Checkout | PENDIENTE / siguiente gate |
+| Orden | PENDIENTE / siguiente gate |
+| Frontend Next.js | PENDIENTE |
+| Sandbox real de pagos | PENDIENTE |
+
+API en `main`: **29** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4).
+
+### Snapshot histórico — cierre Entrega 2
+
+| Componente | Estado (E2) |
 |---|---|
 | Prototipo HTML/CSS/JS (`web/`) | COMPLETADO para E2 |
 | Catálogo (búsqueda, filtros, orden) | COMPLETADO en prototipo |
@@ -73,14 +94,12 @@ Estado al cierre de la Entrega 2:
 | Estados loading / empty / error | COMPLETADO |
 | Contrato OpenAPI 3.1 (`api/openapi.yaml`) | COMPLETADO / VALIDADO |
 | Mock del contrato con Prism | VALIDADO |
-| Modelo de datos PostgreSQL | DOCUMENTADO |
-| Backend Laravel (`backend/`) | SKELETON INICIAL |
-| Persistencia del dominio | NO IMPLEMENTADA TODAVÍA |
-| Frontend Next.js (`frontend/`) | PLANIFICADO / NO INCORPORADO TODAVÍA |
-| Pasarela sandbox real | NO IMPLEMENTADA TODAVÍA |
+| Modelo de datos PostgreSQL | DOCUMENTADO (diseño) |
+| Backend Laravel / persistencia / Sanctum | aún no entregados en E2 (ver estado E3 arriba) |
+| Frontend Next.js (`frontend/`) | PLANIFICADO |
+| Pasarela sandbox real | NO IMPLEMENTADA |
 
-El prototipo usa 12 productos sintéticos locales (`web/datos/ejemplo.json`), guarda el carrito en el navegador y simula el pago. No se conecta todavía con la API.
-
+El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. La API Laravel de Entrega 3 es el camino vigente para autenticación, catálogo, CRUD admin y carrito.
 
 ---
 
@@ -144,9 +163,14 @@ Abrir `http://127.0.0.1:8000/docs`.
 - `/api/admin/customers`
 - `/api/admin/users`
 
-**Cart**
+**Cart** (`auth:sanctum` + rol `CUSTOMER` con perfil)
 
-- en integración mediante issue #6 (no afirmar disponibilidad hasta merge)
+- `GET /api/cart`
+- `POST /api/cart/items`
+- `PATCH /api/cart/items/{cartItemId}`
+- `DELETE /api/cart/items/{cartItemId}`
+
+**Total API:** 29 rutas.
 
 ### Credenciales
 
@@ -220,10 +244,10 @@ Vista conceptual (no representa topología de servidores reales):
                                    └────────────────────┘
 ```
 
-- **Backend API:** Laravel (PHP) — dominio, persistencia, pagos sandbox, webhooks. Hoy es un skeleton sin lógica del dominio.
-- **Frontend:** Next.js / React — catálogo, carrito, checkout y experiencia de usuario. Planificado; la Entrega 2 usa el prototipo estático de `web/`.
-- **Base de datos:** PostgreSQL, motor elegido para la arquitectura (ver `docs/decisiones.md`). La persistencia del dominio todavía no está implementada.
-- **Autenticación API:** Laravel Sanctum (prevista).
+- **Backend API:** Laravel 12 (PHP) — dominio, persistencia PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito y reservas. Checkout/orden/pagos siguen pendientes.
+- **Frontend:** Next.js / React — planificado; la Entrega 2 usa el prototipo estático de `web/`.
+- **Base de datos:** PostgreSQL local `rotor` con migraciones de dominio aplicadas (ver `docs/decisiones.md`).
+- **Autenticación API:** Laravel Sanctum (sesión SPA / cookie).
 
 Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
@@ -231,32 +255,36 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Technology stack
 
-### Entrega 2 (implementado o usado)
+### Entrega 2 (histórico)
 
 | Tecnología | Uso |
 |---|---|
-| HTML5, CSS3, JavaScript | Prototipo navegable y accesible (`web/`) |
+| HTML5, CSS3, JavaScript | Prototipo navegable (`web/`) |
 | OpenAPI 3.1 | Contrato de la API (`api/openapi.yaml`) |
 | Prism | Servidor mock del contrato |
 | Redocly CLI, Spectral | Validación del contrato |
-| PostgreSQL (diseño) | Modelo de datos documentado; sin base desplegada |
-| Laravel 12 (skeleton) | Base del backend, sin migraciones del dominio |
 | GitHub Pages | Publicación del prototipo |
 
-### Arquitectura objetivo (planificada)
+### Entrega 3 (implementado actualmente)
 
 | Tecnología | Uso |
 |---|---|
 | Laravel 12 | Framework API / dominio |
 | PostgreSQL | Persistencia transaccional |
-| Next.js 16 | Aplicación web |
-| React 19 | UI |
-| TypeScript | Tipado estático |
-| Tailwind CSS | Estilos |
 | Laravel Sanctum | Autenticación API / sesión |
+| Swagger UI | Documentación interactiva en `/docs` |
+| BCMath | Cálculos monetarios exactos (HALF_UP) |
+| PHPUnit | Suite Feature del backend |
+
+### Pendiente (siguiente gates / frontend)
+
+| Tecnología | Uso |
+|---|---|
+| Next.js 16 / React 19 | Aplicación web |
+| TypeScript / Tailwind CSS | Tipado y estilos del frontend |
 | Playwright | Pruebas E2E |
 
-Next.js, Sanctum y Playwright todavía no están incorporados al repositorio.
+Next.js y Playwright todavía no están incorporados al repositorio.
 
 ---
 
@@ -307,7 +335,7 @@ Estructura actual:
 ├── .env.example            # Configuración de referencia, sin secretos
 ├── api/
 │   └── openapi.yaml        # Contrato OpenAPI 3.1
-├── backend/                # Skeleton Laravel 12
+├── backend/                # Laravel 12 API (Auth, Catalog, Admin CRUD, Cart)
 ├── frontend/               # Reservado para la aplicación Next.js (vacío)
 ├── docs/
 │   ├── ARCHITECTURE.md
@@ -335,7 +363,7 @@ Estructura actual:
 
 Para probar la Entrega 2 **no se necesita** el backend Laravel ni una base de datos.
 
-Versiones con las que se verificaron estos pasos: Python 3.12.10, Node.js 22.23.2 y npm 10.9.8 (Git 2.51 en Windows). El skeleton del backend declara PHP `^8.2` y Laravel `^12.0`; en el equipo de verificación estaban PHP 8.2.12 y Composer 2.8.12, pero no se requieren para el prototipo.
+Versiones con las que se verificaron estos pasos: Python 3.12.10, Node.js 22.23.2 y npm 10.9.8 (Git 2.51 en Windows). El backend declara PHP `^8.2` y Laravel `^12.0`; en el equipo de verificación estaban PHP 8.2.12 y Composer 2.8.12. El prototipo E2 no requiere PHP ni PostgreSQL.
 
 ### Prototipo
 
@@ -395,13 +423,13 @@ Evidencias de accesibilidad del prototipo: [`docs/evidence/e2-lighthouse.md`](./
 - Modelo de la Entrega 2: [`docs/modelo-datos.md`](./docs/modelo-datos.md) y diagrama [`docs/modelo-datos.png`](./docs/modelo-datos.png).
 - Decisiones: [`docs/decisiones.md`](./docs/decisiones.md).
 
-PostgreSQL es el motor elegido para la arquitectura. El modelo está documentado (entidades, claves, restricciones, índices y cardinalidades), pero la persistencia del dominio todavía **no** está implementada: el skeleton Laravel no contiene migraciones del dominio y no hay una base de datos desplegada.
+PostgreSQL es el motor de persistencia. El modelo está documentado (entidades, claves, restricciones, índices y cardinalidades) y las migraciones de dominio están aplicadas en el backend Laravel de Entrega 3. Checkout, órdenes y pagos sandbox siguen pendientes.
 
 ---
 
 ## Environment variables
 
-[`.env.example`](./.env.example) contiene una configuración de referencia con placeholders (PostgreSQL local y pasarela sandbox sin claves). `backend/.env.example` es la plantilla propia del skeleton Laravel.
+[`.env.example`](./.env.example) contiene una configuración de referencia con placeholders (PostgreSQL local y pasarela sandbox sin claves). `backend/.env.example` es la plantilla del backend Laravel.
 
 Usa **únicamente placeholders**. Nunca commits con valores reales. Cualquier archivo `.env` real debe permanecer fuera del control de versiones.
 

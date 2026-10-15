@@ -1,8 +1,13 @@
 # E3 — Backend validation evidence
 
-Base SHA: `02c1609d7a05d906cf328b39bebe4b7c136cb5a1`
+## Main con carrito (base integrada)
 
-Values below correspond to that main tip (CRUD + Auth + ApiError + Catalog). They do **not** invent later PR results.
+| Campo | Valor |
+|---|---|
+| `MAIN_SHA` | `7cb34f65d9de37eba204a8d30c93ffeffd6898a4` |
+| Origen | Merge PR #23 (`feat/e3-cart-reservations`) en `main` |
+
+Valores medidos en la rama `docs/e3-interactive-api` **después** de `git merge origin/main` (incluye 2 tests Docs de #24):
 
 | Check | Result |
 |---|---|
@@ -12,9 +17,12 @@ Values below correspond to that main tip (CRUD + Auth + ApiError + Catalog). The
 | ApiError contract | PASS |
 | Admin CRUD ×4 | PASS |
 | Public catalog | PASS |
-| PHPUnit | **74 passed / 584 assertions** |
-| Redocly CLI 2.57.0 | **0 errors** (localhost warning accepted) |
-| Spectral CLI 6.16.3 | **0 errors / 0 warnings / 0 hints** |
-| `php artisan route:list --path=api` | **25** routes |
+| Cart + reservas | PASS |
+| Interactive docs (`/docs`, `/docs/openapi.yaml`) | PASS |
+| `PHPUNIT_TESTS` / `ASSERTIONS` | **93 passed / 774 assertions** |
+| Docs Feature | **2 passed / 9 assertions** |
+| `API_ROUTES` | **29** |
+| Redocly CLI 2.57.0 (`REDOCLY`) | **0 errors** (warning `no-server-example-com` accepted) |
+| Spectral CLI 6.16.3 (`SPECTRAL`) | **0 errors / 0 warnings / 0 hints** |
 
-Interactive docs delivery (this branch) adds `GET /docs` and `GET /docs/openapi.yaml` without changing business endpoints.
+> Las cifras 74/584 correspondían a un tip anterior de `main` (CRUD sin carrito) y **no** son la referencia del estado integrado actual.

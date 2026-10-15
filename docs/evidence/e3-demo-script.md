@@ -4,19 +4,20 @@ Audience: reviewer / instructor.
 
 Prerequisites: PostgreSQL `rotor`, `php artisan migrate:fresh --seed`, `php artisan serve`.
 
-1. Open `http://127.0.0.1:8000/docs` — confirm tags/schemas load from `api/openapi.yaml`.
-2. Show migrations/seed against PostgreSQL (tables `products`, `categories`, `users`).
-3. Authenticate as ADMIN (create via admin seed/factory locally; no published demo password).
-4. Create a Category (`POST /api/admin/categories`).
-5. Create a Product under that category (`POST /api/admin/products`).
-6. List/patch the product (`GET`/`PATCH /api/admin/products/{id}`).
-7. Delete a disposable demo resource (`DELETE`) — show `204` or `409 RESOURCE_IN_USE` when referenced.
-8. Authenticate as CUSTOMER → admin route returns **403 FORBIDDEN**.
-9. Without session → **401 UNAUTHENTICATED**.
-10. Invalid payload → **422 VALIDATION_ERROR**.
-11. Public catalog `GET /api/products` shows the created active product.
+1. Open `http://127.0.0.1:8000/docs` — confirm tags/schemas (incluye **Cart**) from `api/openapi.yaml`.
+2. Authenticate as ADMIN (create via factory/admin seed locally; no published demo password).
+3. CRUD Category / Product (`POST`/`GET`/`PATCH`/`DELETE` under `/api/admin/...`).
+4. Invalid payload → **422 VALIDATION_ERROR**.
+5. Authenticate as CUSTOMER (con perfil `Customer`).
+6. Public catalog `GET /api/products` → **200**.
+7. `GET /api/cart` → carrito ACTIVE (vacío o con ítems previos).
+8. `POST /api/cart/items` con un producto activo → reserva `ACTIVE` y `expires_at` futuro.
+9. Volver a `GET /api/cart` y mostrar persistencia + totales como strings decimales.
+10. Mostrar `available_quantity` / reserva (stock menos reservas ACTIVE vigentes de otros carritos).
+11. CUSTOMER contra ruta admin → **403 FORBIDDEN**.
+12. Request sin sesión → **401 UNAUTHENTICATED**.
 
 Notes:
 
-- Cart endpoints are tracked in #6; do not demo cart until merged to main.
-- Swagger "Try it out" works for public routes; cookie/CSRF auth for admin is clearer via an authenticated HTTP client.
+- Swagger "Try it out" works for public routes; cookie/CSRF auth for admin/cart is clearer via an authenticated HTTP client.
+- **No** demonstrar checkout, order ni payment reales hasta que estén integrados en `main`.
