@@ -1,16 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Authentication routes are registered in a follow-up commit.
-|
-*/
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login']);
 
-Route::middleware('api')->group(function () {
-    //
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('me', [AuthController::class, 'me']);
+    });
 });

@@ -55,4 +55,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(Customer::class);
     }
+
+    public function isAdmin(): bool
+    {
+        return strtoupper((string) $this->role) === 'ADMIN';
+    }
+
+    public function isCustomer(): bool
+    {
+        return strtoupper((string) $this->role) === 'CUSTOMER';
+    }
 }
