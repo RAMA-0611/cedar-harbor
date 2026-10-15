@@ -80,7 +80,7 @@ info:
     - 403 → FORBIDDEN
     - 404 → RESOURCE_NOT_FOUND
     - 409 → IDEMPOTENCY_CONFLICT, INVALID_ORDER_STATE, PRICE_CHANGED,
-      and other current-resource state conflicts
+      RESOURCE_IN_USE, and other current-resource state conflicts
     - 422 → VALIDATION_ERROR, CART_EMPTY, INSUFFICIENT_STOCK,
       RESERVATION_EXPIRED
     - 502 → PAYMENT_PROVIDER_ERROR for applicable upstream provider failures
@@ -106,6 +106,14 @@ servers:
 tags:
   - name: Catalog
     description: Public product catalog endpoints.
+  - name: Admin Categories
+    description: Administrative CRUD for catalog categories (ADMIN role).
+  - name: Admin Products
+    description: Administrative CRUD for catalog products (ADMIN role).
+  - name: Admin Customers
+    description: Administrative CRUD for customers (ADMIN role).
+  - name: Admin Users
+    description: Administrative CRUD for users (ADMIN role).
   - name: Cart
     description: Authenticated shopping cart and temporary stock reservations.
   - name: Checkout
@@ -241,6 +249,635 @@ paths:
                     tax_rate: "0.1900"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/categories:
+    get:
+      tags: [Admin Categories]
+      operationId: adminListCategories
+      summary: List categories
+      description: Returns all categories ordered by name. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Category list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListResponse"
+              examples:
+                sample:
+                  value:
+                    data:
+                      - id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                        name: "Rodamientos"
+                        slug: "rodamientos"
+                        description: "Categoría sintética"
+                        is_active: true
+                        created_at: "2026-10-15T12:00:00Z"
+                        updated_at: "2026-10-15T12:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Admin Categories]
+      operationId: adminCreateCategory
+      summary: Create category
+      description: Creates a category. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryWriteRequest"
+            examples:
+              create:
+                value:
+                  name: "Rodamientos"
+                  slug: "rodamientos"
+                  description: "Categoría sintética"
+                  is_active: true
+      responses:
+        "201":
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/categories/{categoryId}:
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Admin Categories]
+      operationId: adminGetCategory
+      summary: Get category
+      description: Returns one category. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Category found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin Categories]
+      operationId: adminUpdateCategory
+      summary: Update category
+      description: Partially updates a category. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryWriteRequest"
+            examples:
+              rename:
+                value:
+                  name: "Rodamientos industriales"
+      responses:
+        "200":
+          description: Category updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Admin Categories]
+      operationId: adminDeleteCategory
+      summary: Delete category
+      description: |
+        Deletes a category when it has no products.
+        Returns RESOURCE_IN_USE when products still reference it.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Category deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/products:
+    get:
+      tags: [Admin Products]
+      operationId: adminListProducts
+      summary: List products
+      description: Returns all products ordered by name. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Product list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductListResponse"
+              examples:
+                sample:
+                  value:
+                    data:
+                      - id: "11111111-1111-4111-8111-111111111111"
+                        category_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                        sku: "ROTOR-BRG-6205"
+                        name: "Rodamiento industrial"
+                        description: "Producto sintético"
+                        brand: "Línea Rotor"
+                        condition: "Nuevo"
+                        unit: "unidad"
+                        price: "45000.00"
+                        currency: "COP"
+                        tax_rate: "0.1900"
+                        stock_quantity: 24
+                        is_active: true
+                        created_at: "2026-10-15T12:00:00Z"
+                        updated_at: "2026-10-15T12:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Admin Products]
+      operationId: adminCreateProduct
+      summary: Create product
+      description: Creates a product. Requires ADMIN. Server is price/tax authority.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminProductWriteRequest"
+            examples:
+              create:
+                value:
+                  category_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                  sku: "ROTOR-BRG-6205"
+                  name: "Rodamiento industrial"
+                  description: "Producto sintético"
+                  brand: "Línea Rotor"
+                  condition: "Nuevo"
+                  unit: "unidad"
+                  price: 45000.00
+                  currency: "COP"
+                  tax_rate: 0.1900
+                  stock_quantity: 24
+                  is_active: true
+      responses:
+        "201":
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/products/{productId}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [Admin Products]
+      operationId: adminGetProduct
+      summary: Get product
+      description: Returns one admin product. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Product found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin Products]
+      operationId: adminUpdateProduct
+      summary: Update product
+      description: Partially updates a product. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminProductWriteRequest"
+            examples:
+              stock:
+                value:
+                  stock_quantity: 30
+      responses:
+        "200":
+          description: Product updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Admin Products]
+      operationId: adminDeleteProduct
+      summary: Delete product
+      description: |
+        Deletes a product when it is not referenced by cart items,
+        stock reservations, or order items. Otherwise RESOURCE_IN_USE.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Product deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/customers:
+    get:
+      tags: [Admin Customers]
+      operationId: adminListCustomers
+      summary: List customers
+      description: Returns customers ordered by created_at descending. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Customer list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerListResponse"
+              examples:
+                sample:
+                  value:
+                    data:
+                      - id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                        user_id: 2
+                        name: "Cliente Sintetico"
+                        email: "cliente.sintetico@example.test"
+                        phone: "+57-300-000-0000"
+                        document_type: "CC"
+                        document_number: "1000000000"
+                        created_at: "2026-10-15T12:00:00Z"
+                        updated_at: "2026-10-15T12:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Admin Customers]
+      operationId: adminCreateCustomer
+      summary: Create customer
+      description: Creates a customer. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerWriteRequest"
+            examples:
+              create:
+                value:
+                  name: "Cliente Sintetico"
+                  email: "cliente.sintetico@example.test"
+                  phone: "+57-300-000-0000"
+                  document_type: "CC"
+                  document_number: "1000000000"
+      responses:
+        "201":
+          description: Customer created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/customers/{customerId}:
+    parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Admin Customers]
+      operationId: adminGetCustomer
+      summary: Get customer
+      description: Returns one customer. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Customer found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin Customers]
+      operationId: adminUpdateCustomer
+      summary: Update customer
+      description: Partially updates a customer. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerWriteRequest"
+            examples:
+              phone:
+                value:
+                  phone: "+57-300-111-9999"
+      responses:
+        "200":
+          description: Customer updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Admin Customers]
+      operationId: adminDeleteCustomer
+      summary: Delete customer
+      description: |
+        Deletes a customer. Linked carts/orders keep their snapshots and set
+        customer_id to null. Does not delete the linked User.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Customer deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/users:
+    get:
+      tags: [Admin Users]
+      operationId: adminListUsers
+      summary: List users
+      description: Returns users ordered by created_at descending. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: User list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+              examples:
+                sample:
+                  value:
+                    data:
+                      - id: 1
+                        name: "Admin Sintetico"
+                        email: "admin@example.test"
+                        role: "ADMIN"
+                        created_at: "2026-10-15T12:00:00Z"
+                        updated_at: "2026-10-15T12:00:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Admin Users]
+      operationId: adminCreateUser
+      summary: Create user
+      description: Creates a user. Password is write-only. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+            examples:
+              create:
+                value:
+                  name: "Cliente Portal"
+                  email: "cliente.portal@example.test"
+                  password: "password123"
+                  role: "CUSTOMER"
+      responses:
+        "201":
+          description: User created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [Admin Users]
+      operationId: adminGetUser
+      summary: Get user
+      description: Returns one user without secrets. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: User found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin Users]
+      operationId: adminUpdateUser
+      summary: Update user
+      description: Partially updates a user. Password remains write-only. Requires ADMIN.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+            examples:
+              rename:
+                value:
+                  name: "Cliente Portal Actualizado"
+      responses:
+        "200":
+          description: User updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Admin Users]
+      operationId: adminDeleteUser
+      summary: Delete user
+      description: |
+        Deletes a user. An ADMIN cannot delete their own account (FORBIDDEN).
+        Linked customers keep their rows and set user_id to null.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: User deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -1186,6 +1823,22 @@ components:
                 message: Resource not found.
                 details: {}
                 trace_id: "trace-synth-0404"
+    Conflict:
+      description: |
+        Resource state conflict. Includes domain delete conflicts such as
+        RESOURCE_IN_USE when a resource is still referenced by domain data.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          examples:
+            resourceInUse:
+              value:
+                code: RESOURCE_IN_USE
+                message: Resource cannot be deleted because it is referenced by domain data.
+                details:
+                  resource: product
+                trace_id: "trace-synth-0409"
     ValidationError:
       description: Request validation failed.
       content:
@@ -1377,7 +2030,7 @@ components:
         HTTP mapping preference: MALFORMED_REQUEST / INVALID_WEBHOOK_SIGNATURE→400,
         UNAUTHENTICATED→401, FORBIDDEN→403,
         RESOURCE_NOT_FOUND→404; IDEMPOTENCY_CONFLICT / INVALID_ORDER_STATE /
-        PRICE_CHANGED→409; VALIDATION_ERROR / CART_EMPTY / INSUFFICIENT_STOCK /
+        PRICE_CHANGED / RESOURCE_IN_USE→409; VALIDATION_ERROR / CART_EMPTY / INSUFFICIENT_STOCK /
         RESERVATION_EXPIRED→422; PAYMENT_PROVIDER_ERROR→502 when upstream.
         DUPLICATE_WEBHOOK_EVENT is informational/internal — duplicate webhook
         deliveries still return HTTP 200 acknowledgement and must not drive
@@ -1388,6 +2041,7 @@ components:
         - UNAUTHENTICATED
         - FORBIDDEN
         - RESOURCE_NOT_FOUND
+        - RESOURCE_IN_USE
         - CART_EMPTY
         - INSUFFICIENT_STOCK
         - RESERVATION_EXPIRED
@@ -1418,6 +2072,337 @@ components:
           description: Optional correlation id for support/debugging.
           examples:
             - "trace-synth-0001"
+
+    Category:
+      type: object
+      required: [id, name, slug, is_active]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 180
+        description:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        updated_at:
+          type: ["string", "null"]
+          format: date-time
+
+    CategoryWriteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          maxLength: 180
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        description:
+          type: ["string", "null"]
+        is_active:
+          type: boolean
+
+    CategoryEnvelope:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/Category"
+
+    CategoryListResponse:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    AdminProduct:
+      type: object
+      required:
+        - id
+        - category_id
+        - sku
+        - name
+        - price
+        - currency
+        - tax_rate
+        - stock_quantity
+        - is_active
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+          maxLength: 120
+        condition:
+          type: ["string", "null"]
+          maxLength: 40
+        unit:
+          type: ["string", "null"]
+          maxLength: 60
+        price:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        tax_rate:
+          type: string
+          pattern: "^[0-9]+(\\.[0-9]{1,4})?$"
+        stock_quantity:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        updated_at:
+          type: ["string", "null"]
+          format: date-time
+
+    AdminProductWriteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+          maxLength: 120
+        condition:
+          type: ["string", "null"]
+          maxLength: 40
+        unit:
+          type: ["string", "null"]
+          maxLength: 60
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          enum: [COP]
+        tax_rate:
+          type: number
+          minimum: 0
+          maximum: 1
+        stock_quantity:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+
+    AdminProductEnvelope:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminProduct"
+
+    AdminProductListResponse:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminProduct"
+
+    Customer:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - document_type
+        - document_number
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: ["integer", "null"]
+        name:
+          type: string
+          maxLength: 160
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 30
+        document_type:
+          type: string
+          maxLength: 10
+        document_number:
+          type: string
+          maxLength: 30
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        updated_at:
+          type: ["string", "null"]
+          format: date-time
+
+    CustomerWriteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: ["integer", "null"]
+        name:
+          type: string
+          maxLength: 160
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 30
+        document_type:
+          type: string
+          maxLength: 10
+        document_number:
+          type: string
+          maxLength: 30
+
+    CustomerEnvelope:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/Customer"
+
+    CustomerListResponse:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+
+    User:
+      type: object
+      required: [id, name, email, role]
+      additionalProperties: false
+      description: User response never includes password or remember_token.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, CUSTOMER]
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        updated_at:
+          type: ["string", "null"]
+          format: date-time
+
+    UserCreateRequest:
+      type: object
+      required: [name, email, password, role]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          writeOnly: true
+        role:
+          type: string
+          enum: [ADMIN, CUSTOMER]
+
+    UserUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          writeOnly: true
+        role:
+          type: string
+          enum: [ADMIN, CUSTOMER]
+
+    UserEnvelope:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+
+    UserListResponse:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
 
     ProductSummary:
       type: object
