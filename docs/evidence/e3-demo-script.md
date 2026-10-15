@@ -2,22 +2,34 @@
 
 Audience: reviewer / instructor.
 
-Prerequisites: PostgreSQL `rotor`, `php artisan migrate:fresh --seed`, `php artisan serve`.
+## Preparación previa (fuera del cronómetro)
 
-1. Open `http://127.0.0.1:8000/docs` — confirm tags/schemas (incluye **Cart**) from `api/openapi.yaml`.
-2. Authenticate as ADMIN (create via factory/admin seed locally; no published demo password).
-3. CRUD Category / Product (`POST`/`GET`/`PATCH`/`DELETE` under `/api/admin/...`).
-4. Invalid payload → **422 VALIDATION_ERROR**.
-5. Authenticate as CUSTOMER (con perfil `Customer`).
-6. Public catalog `GET /api/products` → **200**.
-7. `GET /api/cart` → carrito ACTIVE (vacío o con ítems previos).
-8. `POST /api/cart/items` con un producto activo → reserva `ACTIVE` y `expires_at` futuro.
-9. Volver a `GET /api/cart` y mostrar persistencia + totales como strings decimales.
-10. Mostrar `available_quantity` / reserva (stock menos reservas ACTIVE vigentes de otros carritos).
-11. CUSTOMER contra ruta admin → **403 FORBIDDEN**.
-12. Request sin sesión → **401 UNAUTHENTICATED**.
+Antes de iniciar:
 
-Notes:
+1. PostgreSQL local `rotor` configurado en `backend/.env` (sin secretos en el repo).
+2. `php artisan migrate:fresh --seed`.
+3. Existe **1 ADMIN**, **1 CUSTOMER** con perfil `Customer` vinculado, y productos del seed/factories locales.
+4. `php artisan serve` → `http://127.0.0.1:8000`.
 
-- Swagger "Try it out" works for public routes; cookie/CSRF auth for admin/cart is clearer via an authenticated HTTP client.
-- **No** demonstrar checkout, order ni payment reales hasta que estén integrados en `main`.
+No hay passwords demo publicados en el repositorio. Crear usuarios con factories/admin API o seeders locales **no versionados**.
+
+## Secuencia (≤ 5 min)
+
+1. Abrir `http://127.0.0.1:8000/docs` — tags **Auth**, **Catalog**, **Admin**, **Cart**, **Checkout**, **Orders**. Confirmar que **no** aparecen payment-intent / webhook / reconcile como operaciones ejecutables.
+2. Mencionar PostgreSQL: migraciones reales + suite verde (ver `e3-backend-validation.md`).
+3. Login **CUSTOMER** (cliente HTTP con cookies + CSRF Sanctum; Swagger Try it out es limitado para sesión).
+4. `GET /api/products` → catálogo 200.
+5. `POST /api/cart/items` → reserva `ACTIVE`.
+6. `GET /api/cart` → persistencia y totales como strings decimales.
+7. `POST /api/checkout/validate` → `valid: true`.
+8. `POST /api/orders` con header `Idempotency-Key` **fija** → **201** `PENDING_PAYMENT`.
+9. Repetir el **mismo** POST + la **misma** key → misma `order.id` (sin segunda orden).
+10. `GET /api/orders/{id}/status` → `PENDING_PAYMENT`.
+11. Error de aislamiento: CUSTOMER contra ruta admin → **403**, o payload inválido → **422**.
+12. Cierre: sandbox / webhook / conciliación son el siguiente hito (**issue #9**), no parte de la demo E3.
+
+## Notas
+
+- No crear una segunda orden con otra `Idempotency-Key` durante la demo.
+- No demostrar `PAID`, payment-intent ni webhooks.
+- Try it out público: `GET /api/products` desde Swagger → 200.
