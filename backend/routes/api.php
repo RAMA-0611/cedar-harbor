@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\CheckoutController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -33,4 +34,6 @@ Route::middleware(['auth:sanctum', 'role:CUSTOMER'])->group(function () {
     Route::post('cart/items', [CartController::class, 'storeItem']);
     Route::patch('cart/items/{cartItemId}', [CartController::class, 'updateItem']);
     Route::delete('cart/items/{cartItemId}', [CartController::class, 'destroyItem']);
+
+    Route::post('checkout/validate', [CheckoutController::class, 'validateCheckout']);
 });

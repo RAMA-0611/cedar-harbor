@@ -129,6 +129,28 @@ class CartService
     }
 
     /**
+     * Active cart for the customer, or null — never creates an empty cart.
+     */
+    public function findActiveCart(Customer $customer): ?Cart
+    {
+        return Cart::query()
+            ->where('customer_id', $customer->id)
+            ->where('status', 'ACTIVE')
+            ->orderBy('created_at')
+            ->first();
+    }
+
+    public function expireStaleReservationsForCart(Cart $cart): void
+    {
+        $this->expireReservationsForCart($cart);
+    }
+
+    public function loadCartWithRelations(Cart $cart): Cart
+    {
+        return $this->loadCart($cart);
+    }
+
+    /**
      * Maximum reachable quantity for a line: stock minus OTHER active reservations.
      */
     public function availableQuantityForLine(Product $product, ?string $excludeCartItemId = null): int
