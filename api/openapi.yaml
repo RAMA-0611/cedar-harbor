@@ -104,6 +104,12 @@ servers:
     description: Local development
 
 tags:
+  - name: Auth
+    description: |
+      Authentication endpoints for the stateful Laravel Sanctum session used by
+      the E3 SPA/backend. Clients should call `GET /sanctum/csrf-cookie` first
+      (framework endpoint, not listed under `/api`), then mutate with cookies
+      and CSRF as required by Sanctum.
   - name: Catalog
     description: Public product catalog endpoints.
   - name: Admin Categories
@@ -119,19 +125,92 @@ tags:
   - name: Checkout
     description: Pre-order validation of cart, stock, prices, and buyer data.
   - name: Orders
-    description: Order creation, consultation, status, and cancellation.
-  - name: Payments
-    description: Sandbox payment intent initiation.
-  - name: Webhooks
     description: |
-      Provider-to-backend payment event ingestion (signature-verified).
-      Duplicate deliveries are acknowledged with HTTP 200 (idempotent).
-  - name: Reconciliation
-    description: |
-      Administrative/system verification against the payment provider.
-      Not a normal buyer/customer self-service action.
+      Order creation through PENDING_PAYMENT, consultation, status, and
+      cancellation. Sandbox payment confirmation is out of scope for E3
+      (see issue #9).
 
 paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Authenticate with email and password
+      description: |
+        Starts a stateful Sanctum session (`web` guard). SPA clients obtain a
+        CSRF cookie via `GET /sanctum/csrf-cookie` before this call and send
+        credentials with cookies enabled.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              customer:
+                value:
+                  email: "customer.demo@example.test"
+                  password: "password"
+      responses:
+        "200":
+          description: Authenticated session established.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+              examples:
+                customer:
+                  value:
+                    user:
+                      id: 2
+                      name: "Cliente Demo"
+                      email: "customer.demo@example.test"
+                      role: CUSTOMER
+                      customer_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: End the current session
+      description: Logs out the authenticated user and invalidates the session.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Session ended. No response body.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      operationId: me
+      summary: Current authenticated user
+      description: Returns the session user payload (no password fields).
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/products:
     get:
       tags: [Catalog]
@@ -1560,290 +1639,6 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /api/orders/{orderId}/payment-intent:
-    post:
-      tags: [Payments]
-      operationId: createPaymentIntent
-      summary: Create sandbox payment intent
-      description: |
-        Creates or initiates a sandbox payment operation for the order.
-        Never accepts or returns real provider secret keys.
-        Provider enum is limited to sandbox-capable conceptual providers.
-
-        The `redirect_url` enables the buyer payment UX only. Browser
-        return/redirect from the gateway is NOT an authoritative payment
-        confirmation and must never, by itself, transition the order to PAID.
-        Definitive confirmation requires a signature-validated webhook or
-        an explicit administrative reconciliation against the provider.
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/OrderId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PaymentIntentRequest"
-            examples:
-              wompi:
-                value:
-                  provider: WOMPI
-      responses:
-        "200":
-          description: Payment intent created or resumed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentIntent"
-              examples:
-                sandboxIntent:
-                  value:
-                    payment_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
-                    provider: WOMPI
-                    provider_reference: "sandbox-ref-ROTOR-0001"
-                    status: PENDING
-                    redirect_url: "http://localhost:3000/checkout/payment/return?ref=sandbox-ref-ROTOR-0001"
-                    expires_at: "2026-09-18T15:30:00Z"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: Order not eligible for payment intent.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                alreadyPaid:
-                  value:
-                    code: INVALID_ORDER_STATE
-                    message: Order is already PAID; a new payment intent is not allowed.
-                    details:
-                      current_status: PAID
-                    trace_id: "trace-synth-0012"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-        "502":
-          description: Upstream sandbox provider error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                providerError:
-                  value:
-                    code: PAYMENT_PROVIDER_ERROR
-                    message: Sandbox provider rejected the payment intent request.
-                    details: {}
-                    trace_id: "trace-synth-0004"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/webhooks/payments/{provider}:
-    post:
-      tags: [Webhooks]
-      operationId: receivePaymentWebhook
-      summary: Receive provider payment webhook
-      description: |
-        Provider → backend channel. Not authenticated with Sanctum/cookieAuth.
-
-        Conceptual headers:
-        - `X-Webhook-Signature` — HMAC or provider signature material
-        - `X-Webhook-Id` — unique event identifier from the provider
-
-        Final header names may be adapted to the selected provider later.
-
-        Processing rules:
-        - Signature must be validated before any business effect
-        - `webhook_id` / `event_id` identifies the event uniquely
-        - Processing must be idempotent
-        - If the same `X-Webhook-Id` / `event_id` was already processed:
-          do not re-run business effects (no second inventory deduction,
-          no repeated state transition); return HTTP 200 with an idempotent
-          acknowledgement (`accepted: true`, `duplicate: true`)
-        - `DUPLICATE_WEBHOOK_EVENT` may be used internally/informationally,
-          but a legitimate provider retry must not receive an error HTTP
-          status that encourages infinite retries
-        - Browser return/redirect from the payment gateway is NOT an
-          authoritative payment confirmation; transition to PAID depends on
-          a validated webhook or explicit reconciliation—never on browser
-          parameters alone
-      security: []
-      parameters:
-        - name: provider
-          in: path
-          required: true
-          schema:
-            $ref: "#/components/schemas/PaymentProvider"
-          description: Sandbox payment provider slug.
-        - name: X-Webhook-Signature
-          in: header
-          required: true
-          schema:
-            type: string
-          description: Conceptual signature header (name may adapt per provider).
-        - name: X-Webhook-Id
-          in: header
-          required: true
-          schema:
-            type: string
-          description: Conceptual unique event id header (name may adapt per provider).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/WebhookEvent"
-            examples:
-              paid:
-                value:
-                  event_id: "wh-synth-0001"
-                  provider: WOMPI
-                  provider_reference: "sandbox-ref-ROTOR-0001"
-                  order_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-                  payment_status: APPROVED
-                  occurred_at: "2026-09-18T15:10:00Z"
-                  payload:
-                    amount: "107100.00"
-                    currency: "COP"
-      responses:
-        "200":
-          description: |
-            Event accepted. Also used for idempotent duplicate delivery:
-            business effects are not re-applied; HTTP 200 avoids provider
-            retry storms.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WebhookAck"
-              examples:
-                accepted:
-                  value:
-                    accepted: true
-                    duplicate: false
-                duplicate:
-                  summary: Idempotent duplicate acknowledgement
-                  value:
-                    accepted: true
-                    duplicate: true
-        "400":
-          description: Invalid webhook signature or malformed payload.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                badSignature:
-                  value:
-                    code: INVALID_WEBHOOK_SIGNATURE
-                    message: Webhook signature validation failed.
-                    details: {}
-                    trace_id: "trace-synth-0005"
-                malformed:
-                  value:
-                    code: MALFORMED_REQUEST
-                    message: Webhook body is not valid JSON.
-                    details: {}
-                    trace_id: "trace-synth-0400c"
-        "422":
-          description: Event payload invalid for processing.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                unknownReference:
-                  value:
-                    code: VALIDATION_ERROR
-                    message: provider_reference does not match any sandbox payment.
-                    details:
-                      provider_reference: "sandbox-ref-ROTOR-9999"
-                    trace_id: "trace-synth-0013"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/orders/{orderId}/reconcile:
-    post:
-      tags: [Reconciliation]
-      operationId: reconcileOrder
-      summary: Reconcile order against sandbox provider (admin/system)
-      description: |
-        Administrative or system operation — NOT a normal buyer/customer
-        checkout action. Verifies transaction state against the payment
-        provider when a webhook is missing or an inconsistency exists.
-
-        cookieAuth is retained conceptually until a dedicated RBAC scheme
-        exists; implementations must still restrict this endpoint to
-        administrative/system callers. Scheduled jobs are out of scope for
-        this contract revision.
-
-        Successful reconciliation may advance the order to PAID when the
-        provider confirms approval. Browser redirect parameters alone must
-        never be treated as authoritative confirmation.
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/OrderId"
-      responses:
-        "200":
-          description: Reconciliation result applied or confirmed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReconciliationResult"
-              examples:
-                synced:
-                  value:
-                    order_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-                    previous_status: PENDING_PAYMENT
-                    current_status: PAID
-                    provider: WOMPI
-                    provider_reference: "sandbox-ref-ROTOR-0001"
-                    reconciled: true
-                    message: Provider status synchronized successfully.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: Order state does not allow reconciliation or conflict detected.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                alreadyFulfilled:
-                  value:
-                    code: INVALID_ORDER_STATE
-                    message: Order is FULFILLED and cannot be reconciled again.
-                    details:
-                      current_status: FULFILLED
-                    trace_id: "trace-synth-0014"
-        "502":
-          description: Provider unreachable or returned an error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiError"
-              examples:
-                provider:
-                  value:
-                    code: PAYMENT_PROVIDER_ERROR
-                    message: Unable to query sandbox provider status.
-                    details: {}
-                    trace_id: "trace-synth-0006"
-        "500":
-          $ref: "#/components/responses/InternalError"
 
 components:
   securitySchemes:
@@ -2136,23 +1931,6 @@ components:
         - EXPIRED
         - CANCELLED
 
-    PaymentProvider:
-      type: string
-      description: Conceptual sandbox payment providers supported by this contract.
-      enum:
-        - WOMPI
-        - MERCADOPAGO
-
-    PaymentStatus:
-      type: string
-      description: Normalized payment status for intents and webhook events.
-      enum:
-        - PENDING
-        - APPROVED
-        - DECLINED
-        - EXPIRED
-        - CANCELLED
-        - ERROR
 
     ErrorCode:
       type: string
@@ -2204,6 +1982,49 @@ components:
           description: Optional correlation id for support/debugging.
           examples:
             - "trace-synth-0001"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          description: Never echoed in responses.
+
+    AuthenticatedUser:
+      type: object
+      required: [id, name, email, role, customer_id]
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, CUSTOMER]
+        customer_id:
+          type: ["string", "null"]
+          format: uuid
+          description: Linked Customer profile id when the user is a CUSTOMER with profile; otherwise null.
+
+    AuthResponse:
+      type: object
+      required: [user]
+      additionalProperties: false
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthenticatedUser"
 
     Category:
       type: object
@@ -2934,128 +2755,3 @@ components:
         updated_at:
           type: string
           format: date-time
-
-    PaymentIntentRequest:
-      type: object
-      required: [provider]
-      additionalProperties: false
-      properties:
-        provider:
-          $ref: "#/components/schemas/PaymentProvider"
-
-    PaymentIntent:
-      type: object
-      required:
-        - payment_id
-        - provider
-        - provider_reference
-        - status
-        - redirect_url
-        - expires_at
-      additionalProperties: false
-      description: |
-        Sandbox payment intent. Never includes secret keys or credentials.
-        `redirect_url` is for buyer UX only. Browser return/redirect is not
-        authoritative confirmation of payment; PAID requires a validated
-        webhook or explicit reconciliation.
-      properties:
-        payment_id:
-          type: string
-          format: uuid
-        provider:
-          $ref: "#/components/schemas/PaymentProvider"
-        provider_reference:
-          type: string
-          description: Provider-side reference for the sandbox transaction.
-        status:
-          $ref: "#/components/schemas/PaymentStatus"
-        redirect_url:
-          type: string
-          format: uri
-          description: |
-            Local/sandbox redirect URL for the payment UX. Completing this
-            redirect does not by itself confirm payment or transition to PAID.
-          examples:
-            - "http://localhost:3000/checkout/payment/return?ref=sandbox-ref-ROTOR-0001"
-        expires_at:
-          type: string
-          format: date-time
-
-    WebhookEvent:
-      type: object
-      required:
-        - event_id
-        - provider
-        - provider_reference
-        - payment_status
-        - occurred_at
-      additionalProperties: false
-      description: |
-        Provider event payload. After signature validation, an APPROVED event
-        may drive the definitive transition to PAID. Browser redirect
-        parameters alone must never do so. Duplicate `event_id` deliveries
-        are acknowledged with HTTP 200 without re-applying effects.
-      properties:
-        event_id:
-          type: string
-          description: Unique provider event id (also conveyed via X-Webhook-Id conceptually).
-        provider:
-          $ref: "#/components/schemas/PaymentProvider"
-        provider_reference:
-          type: string
-        order_id:
-          type: string
-          format: uuid
-          description: Optional order correlation when the provider payload includes it.
-        payment_status:
-          $ref: "#/components/schemas/PaymentStatus"
-        occurred_at:
-          type: string
-          format: date-time
-        payload:
-          type: object
-          description: Opaque provider payload subset (sanitized/synthetic in examples).
-          additionalProperties: true
-
-    WebhookAck:
-      type: object
-      required: [accepted, duplicate]
-      additionalProperties: false
-      description: |
-        Idempotent webhook acknowledgement. When `duplicate` is true, no
-        inventory deduction or state transition is repeated; HTTP status
-        remains 200 so providers do not enter infinite retry loops.
-      properties:
-        accepted:
-          type: boolean
-        duplicate:
-          type: boolean
-          description: |
-            True when the same webhook/event id was already processed.
-            Business effects must not run again; HTTP 200 is still returned.
-
-    ReconciliationResult:
-      type: object
-      required:
-        - order_id
-        - previous_status
-        - current_status
-        - provider
-        - reconciled
-      additionalProperties: false
-      properties:
-        order_id:
-          type: string
-          format: uuid
-        previous_status:
-          $ref: "#/components/schemas/OrderStatus"
-        current_status:
-          $ref: "#/components/schemas/OrderStatus"
-        provider:
-          $ref: "#/components/schemas/PaymentProvider"
-        provider_reference:
-          type: string
-        reconciled:
-          type: boolean
-        message:
-          type: string
