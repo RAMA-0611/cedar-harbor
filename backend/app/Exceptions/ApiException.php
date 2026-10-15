@@ -31,6 +31,14 @@ class ApiException extends Exception
     /**
      * @param  array<string, mixed>  $details
      */
+    public static function unprocessable(string $code, string $message, array $details = []): self
+    {
+        return new self(422, $code, $message, $details);
+    }
+
+    /**
+     * @param  array<string, mixed>  $details
+     */
     public static function providerFailure(string $message = 'Payment provider error.', array $details = []): self
     {
         return new self(502, 'PAYMENT_PROVIDER_ERROR', $message, $details);

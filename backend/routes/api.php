@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\CustomerController as AdminCustomerController
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,4 +26,11 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->prefix('admin')->group(functi
     Route::apiResource('products', AdminProductController::class);
     Route::apiResource('customers', AdminCustomerController::class);
     Route::apiResource('users', AdminUserController::class);
+});
+
+Route::middleware(['auth:sanctum', 'role:CUSTOMER'])->group(function () {
+    Route::get('cart', [CartController::class, 'show']);
+    Route::post('cart/items', [CartController::class, 'storeItem']);
+    Route::patch('cart/items/{cartItemId}', [CartController::class, 'updateItem']);
+    Route::delete('cart/items/{cartItemId}', [CartController::class, 'destroyItem']);
 });
