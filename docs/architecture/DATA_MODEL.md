@@ -834,3 +834,18 @@ Cardinalidades:
 - RBAC fino de conciliación
 - Modelo completo de inventario
 - Implementación concreta de locking / hash canónico
+
+---
+
+## E3 addendum — Local catalog adapter (MVP)
+
+**ADR-E3-001.** Entrega 3 implements a **substitutable local catalog adapter**
+in PostgreSQL (`categories`, `products`) so the academic MVP can persist and
+CRUD catalog data without depending on an external enterprise inventory system.
+
+- Conceptual future model (ADR-E2-007): inventory remains an integration boundary.
+- E3 implementation: local tables satisfy the public catalog contract; later the
+  origin can be swapped without changing domain IDs or API shapes.
+- In E3 migrations, `product_id` columns gain FK → `products.id`.
+- `modelo-datos.png` / mermaid may still show PRODUCT as external until final
+  diagram integration; treat that as pending visual sync, not a model conflict.

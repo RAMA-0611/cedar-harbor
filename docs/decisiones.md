@@ -111,3 +111,21 @@ transaccional. El detalle técnico está en `docs/architecture/DATA_MODEL.md`
 - **Consecuencia.** Un retorno manipulado no confirma pagos ni descuenta
   inventario. La pantalla de retorno debe mostrar “pago en verificación”
   hasta que la API informe el estado definitivo.
+
+## ADR-E3-001 — Catálogo local persistente para el MVP de Entrega 3
+
+- **Contexto.** E2 trató Product como frontera externa (ADR-E2-007): Project
+  Rotor referenciaba `product_id` sin FK local porque el inventario vive en
+  otro dominio. E3 exige persistencia PostgreSQL real y CRUD sobre catálogo
+  en un entorno académico que no debe depender del sistema empresarial.
+- **Decisión.** Para el MVP de Entrega 3, Project Rotor tendrá tablas locales
+  `categories` y `products` que implementan el contrato del catálogo durante
+  el MVP. Es un **adaptador sustituible**: conserva el contrato público del
+  dominio (`ProductSummary` / `product_id` UUID) mientras la fuente de verdad
+  de lectura/escritura del catálogo es PostgreSQL local.
+- **Consecuencia.** Las FK locales (`products.category_id`,
+  `cart_items.product_id`, `order_items.product_id`,
+  `stock_reservations.product_id`) aplican en E3. ADR-E2-007 permanece como
+  modelo conceptual futuro (inventario como frontera de integración); E3 no
+  la borra, la implementa vía adaptador local reemplazable sin cambiar el
+  contrato público.

@@ -54,7 +54,8 @@ auditoría sin renunciar al modelo relacional en el resto del dominio.
 | OrderItem | `order_items` | Snapshot histórico e inmutable de cada línea comprada |
 | Payment | `payments` | Intento de pago sandbox; una orden puede tener varios |
 | WebhookEvent | `webhook_events` | Evento recibido del proveedor de pagos, procesado de forma idempotente |
-| Product (externo) | — | Frontera de integración con el dominio de inventario; no es tabla de Project Rotor |
+| Category | `categories` | Categoría del catálogo local MVP (E3) |
+| Product (adaptador local MVP) | `products` | Catálogo local sustituible (ADR-E3-001); conceptualmente sigue siendo frontera de integración |
 
 ---
 
@@ -295,7 +296,7 @@ catálogo (`ProductSummary`); no se persisten localmente:
 | UNIQUE | `cart_items` | `(cart_id, product_id)` | Un producto aparece una sola vez por carrito |
 | UNIQUE | `payments` | `(provider, provider_reference)` | Una referencia del proveedor no se repite; varios NULL permitidos |
 | UNIQUE | `webhook_events` | `(provider, external_event_id)` | Un evento del proveedor se registra una sola vez |
-| Referencia externa | `cart_items`, `stock_reservations`, `order_items` | `product_id` | Referencia conceptual al dominio de inventario; **no** es FK local |
+| FK (E3) | `cart_items`, `stock_reservations`, `order_items` | `product_id → products.id` | Adaptador local MVP (ADR-E3-001); conceptualmente sustituible |
 
 Restricción prohibida: `UNIQUE(customer_id, status)` en `carts`.
 
@@ -464,9 +465,23 @@ para la API.
 
 ---
 
+## Evolución E3 — adaptador de catálogo local (MVP)
+
+Conforme a **ADR-E3-001**, la implementación de Entrega 3 añade tablas locales
+`categories` y `products` como adaptador sustituible del catálogo para el
+MVP académico. El modelo conceptual futuro sigue tratando el inventario como
+frontera de integración (ADR-E2-007); E3 no elimina esa decisión, la realiza
+con persistencia PostgreSQL local.
+
+En E3, `product_id` en `cart_items`, `stock_reservations` y
+`order_items` es FK hacia `products.id`. La entidad `Category` es nueva
+en el MVP.
+
+---
+
 ## Fuera de alcance
 
-- Migraciones Laravel y SQL ejecutable.
+- Controladores HTTP, Sanctum y CRUD de API (ramos posteriores).
 - Comportamiento `ON DELETE` de cada FK (se define en las migraciones; no
   hay borrado físico de órdenes, pagos ni eventos).
 - Jobs de expiración de reservas.
