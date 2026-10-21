@@ -204,6 +204,12 @@ Crear usuarios reales con factories/admin API o seeders locales no versionados.
 - [`docs/evidence/e3-backend-validation.md`](./docs/evidence/e3-backend-validation.md)
 - [`docs/evidence/e3-demo-script.md`](./docs/evidence/e3-demo-script.md)
 
+### MVP audit
+
+Auditoría técnica de `v0.3.0` (sin cambios funcionales): [`docs/audits/MVP0_REQUIREMENTS_MATRIX.md`](./docs/audits/MVP0_REQUIREMENTS_MATRIX.md).
+
+Backup/restore PostgreSQL local: [`docs/operations/DATABASE_BACKUP_RESTORE.md`](./docs/operations/DATABASE_BACKUP_RESTORE.md).
+
 
 ---
 
