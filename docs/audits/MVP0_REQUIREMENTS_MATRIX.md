@@ -22,6 +22,8 @@ El harness temporal fuera del repo (`C:\Temp\rotor-e3-admin-demo`) **no** cuenta
 | CATEGORÍAS | PASS | MISSING | PASS | PASS | PARTIAL | P0 | CRUD admin 5 operaciones, slug unique, 409 si tiene productos. UI admin MISSING. |
 | DOCUMENTACIÓN API | PASS | PASS | NOT_VERIFIED | PASS | PASS | P1 | `api/openapi.yaml` 34 operationIds; UI `/docs`. Redocly válido con 16 warnings de examples. |
 | PRUEBAS | PASS | MISSING | PASS | PARTIAL | PARTIAL | P1 | PHPUnit 133 passed / 1093 assertions / 0 failures. Playwright E2E: solo `tests/e2e/.gitkeep`. |
+| Testing isolation | MISSING | NOT_VERIFIED | MISSING | MISSING | MISSING | P0 | `phpunit.xml` define `APP_ENV=testing` pero no activa `DB_CONNECTION`/`DB_DATABASE`. SQLite está comentado. La suite hereda `.env` → `rotor`. |
+| Data loss protection | PASS | NOT_VERIFIED | PARTIAL | NOT_VERIFIED | PARTIAL | P0 | Backup/restore PASS y recuperación empírica OK; tests todavía no están aislados, así que un `php artisan test` puede vaciar `rotor`. |
 | BACKUP | PASS | NOT_VERIFIED | PASS | NOT_VERIFIED | PASS | P1 | Dump custom real `pg_dump -F c` de `rotor` local. Script `scripts/db-backup.ps1`. |
 | RESTORE | PASS | NOT_VERIFIED | PASS | NOT_VERIFIED | PASS | P1 | Restore verificado en DB aislada; conteos MATCH. Script rechaza `target=rotor` por defecto. |
 | WEB | PARTIAL | PARTIAL | NOT_VERIFIED | MISSING | PARTIAL | P1 | E2 estático publicable. API E3 no está lista para publicación (cookies/HTTPS/APP_DEBUG). |
@@ -98,6 +100,21 @@ Gaps frente a rúbrica de pedidos admin: listado, filtros, cambio de estado por 
 - Dominios cubiertos: Auth, Admin, Catalog, Cart, Checkout, Orders, Docs, Api, Persistence.
 - E2E Playwright: MISSING (`tests/e2e/.gitkeep`).
 - Tests de frontend Next.js: MISSING.
+- Isolation: MISSING (ver fila Testing isolation). No volver a ejecutar la suite contra `rotor` hasta MVP-1.
+
+### Testing isolation
+
+- `backend/phpunit.xml`: `APP_ENV=testing` definido.
+- `DB_CONNECTION` / `DB_DATABASE` de testing **no** activos; SQLite comentado.
+- Sin DB `rotor_testing`. Laravel hereda `backend/.env` → `rotor`.
+- `RefreshDatabase` vació datos de dominio de `rotor` durante MVP-0.
+- Estado: **MISSING**. Prioridad: **P0**.
+
+### Data loss protection
+
+- Backup custom y restore aislado: PASS.
+- Recuperación destructiva confirmada de `rotor` tras PHPUnit: PASS.
+- Mientras los tests apunten a `rotor`, la protección es **PARTIAL**: el dump mitiga, no previene, la pérdida.
 
 ### BACKUP
 

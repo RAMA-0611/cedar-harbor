@@ -103,14 +103,42 @@ Reutilizable como **referencia UX** (layout catálogo, estados `?state=loading|e
 
 Confirmados desde el proyecto real:
 
-1. Frontend integrado Next.js inexistente (`frontend/.gitkeep`).
-2. Dashboard administrativo inexistente.
-3. UI CRUD Users inexistente.
-4. UI CRUD Products inexistente.
-5. UI CRUD Categories inexistente.
-6. UI CRUD Orders inexistente.
-7. Orders no es CRUD administrativo: no hay list, update, delete ni rutas `/api/admin/orders`.
-8. Login UI inexistente (bloquea cualquier pantalla admin).
+### TEST DATABASE ISOLATION
+
+La suite Feature usa `RefreshDatabase` y **no** tiene una base PostgreSQL de testing separada configurada de forma explícita.
+
+Causa en `backend/phpunit.xml` (leído, no modificado):
+
+- `APP_ENV=testing` **sí** está definido.
+- `DB_CONNECTION` y `DB_DATABASE` de tests **no** están activos.
+- Las líneas SQLite (`sqlite` / `:memory:`) están **comentadas**.
+- Sin override de testing, Laravel hereda `backend/.env` y apunta a `rotor`.
+
+Impacto:
+
+- `php artisan test` puede eliminar/recrear tablas o datos de la base de aplicación `rotor`.
+- Riesgo de pérdida accidental de datos locales de demo.
+- Obliga a restaurar desde backup para recuperar el snapshot.
+- No es aceptable para continuar el desarrollo de un MVP seguro.
+
+Evidencia empírica MVP-0:
+
+- PHPUnit 133 passed / 1093 assertions corrió contra `rotor`.
+- Tras la suite, conteos de dominio en `rotor` quedaron en 0 (`migrations` = 15).
+- Recuperación desde dump custom fue exitosa (`-AllowDestructiveRestore -ConfirmDestructive -Clean`).
+- No se publican passwords.
+
+Corrección planificada: **MVP-1 — Aislar base de datos de pruebas**. Esta fase documental **no** cambia `phpunit.xml`.
+
+1. TEST DATABASE ISOLATION (arriba).
+2. Frontend integrado Next.js inexistente (`frontend/.gitkeep`).
+3. Dashboard administrativo inexistente.
+4. UI CRUD Users inexistente.
+5. UI CRUD Products inexistente.
+6. UI CRUD Categories inexistente.
+7. UI CRUD Orders inexistente.
+8. Orders no es CRUD administrativo: no hay list, update, delete ni rutas `/api/admin/orders`.
+9. Login UI inexistente (bloquea cualquier pantalla admin).
 
 ## P1
 
@@ -130,6 +158,7 @@ Confirmados desde el proyecto real:
 3. Observability más allá de `trace_id` + log stack.
 4. PUT vs PATCH en `apiResource` no documentado.
 5. Íconos/copy del prototipo E2 como referencia visual.
+6. Reproducibilidad de lint OpenAPI: MVP-0 ejecutó Redocly **1.34.21** y Spectral **6.17.0**; evidencias E3 anteriores usaron otras versiones. No es error funcional. Recomendación futura: pinning explícito de herramientas de lint. No se modifican dependencias en esta fase.
 
 ## Matriz de reutilización
 
