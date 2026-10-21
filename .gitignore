@@ -40,6 +40,8 @@ coverage/
 *.dump
 *.backup
 *.bak
+backups/
+/backend/storage/app/backups/
 
 # Logs
 *.log
