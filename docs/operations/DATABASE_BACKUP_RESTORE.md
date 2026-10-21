@@ -95,7 +95,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\db-restore.ps1 `
 
 `-Clean` añade `pg_restore --clean --if-exists`. Hace falta cuando la base destino ya tiene esquema (p. ej. después de `php artisan test` / `RefreshDatabase`).
 
-PHPUnit de este repo corre contra PostgreSQL `rotor` (no sqlite). Un `php artisan test` deja las tablas de dominio vacías. Hacer backup **antes** de la suite si hay datos de demo que deban conservarse.
+PHPUnit **no** debe correr contra `rotor`. Tras MVP-1 la suite usa `rotor_testing` (ver [`TEST_DATABASE.md`](./TEST_DATABASE.md)). Un `php artisan test` anterior a ese aislamiento, con `RefreshDatabase`, vaciaba `rotor`. Hacer backup **antes** de cualquier suite si aún no está aislada.
 
 ## Variables
 

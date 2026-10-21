@@ -146,6 +146,19 @@ php artisan serve
 
 Abrir `http://127.0.0.1:8000/docs`.
 
+### Testing
+
+PHPUnit usa PostgreSQL `rotor_testing`, **nunca** `rotor`.
+
+```powershell
+# crear rotor_testing como superuser local (ver docs/operations/TEST_DATABASE.md)
+cd backend
+copy .env.testing.example .env.testing
+php artisan test
+```
+
+La suite aborta con `Refusing to run tests against non-testing database.` si el entorno apunta a `rotor` u otra base. Detalle: [`docs/operations/TEST_DATABASE.md`](./docs/operations/TEST_DATABASE.md).
+
 ### Endpoints E3 disponibles en main
 
 **Auth**
