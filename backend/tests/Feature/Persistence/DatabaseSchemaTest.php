@@ -30,11 +30,12 @@ class DatabaseSchemaTest extends TestCase
         }
     }
 
-    public function test_connection_is_pgsql_rotor_local(): void
+    public function test_connection_is_pgsql_rotor_testing(): void
     {
         $this->assertSame('pgsql', config('database.default'));
         $this->assertSame('pgsql', DB::connection()->getDriverName());
-        $this->assertSame('rotor', config('database.connections.pgsql.database'));
+        $this->assertSame('rotor_testing', config('database.connections.pgsql.database'));
+        $this->assertSame('rotor_testing', DB::selectOne('select current_database() as name')->name);
         $host = config('database.connections.pgsql.host');
         $this->assertTrue(in_array($host, ['127.0.0.1', 'localhost'], true));
     }
