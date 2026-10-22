@@ -22,8 +22,68 @@ export type AdminListResponse<T> = {
   data: T[];
 };
 
+export type OrderStatus =
+  | "DRAFT"
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "FULFILLED"
+  | "FAILED"
+  | "EXPIRED"
+  | "CANCELLED";
+
+export type AdminOrderCustomer = {
+  name: string;
+  email: string;
+  phone: string;
+  document_type: string;
+  document_number: string;
+};
+
+export type AdminOrderDelivery = {
+  mode: "PICKUP" | "COORDINATED_SHIPPING";
+  address: string | null;
+};
+
+export type AdminOrderItem = {
+  id: string;
+  product_id: string;
+  sku: string;
+  product_name: string;
+  quantity: number;
+  unit_price: string;
+  tax_amount: string;
+  line_total: string;
+};
+
+export type AdminOrder = {
+  id: string;
+  order_number: string;
+  status: OrderStatus;
+  currency: "COP";
+  subtotal: string;
+  tax_total: string;
+  total: string;
+  customer: AdminOrderCustomer;
+  delivery: AdminOrderDelivery;
+  items?: AdminOrderItem[];
+  created_at: string;
+  updated_at: string;
+  cancelled_at: string | null;
+};
+
+export type AdminOrderUpdatePayload = {
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_document_type?: string;
+  customer_document_number?: string;
+  delivery_mode?: "PICKUP" | "COORDINATED_SHIPPING";
+  delivery_address?: string | null;
+  status?: "CANCELLED";
+};
+
 export type AdminOrderListResponse = {
-  data: unknown[];
+  data: AdminOrder[];
   meta: {
     page: number;
     per_page: number;

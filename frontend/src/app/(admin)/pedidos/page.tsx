@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
+import { OrdersModule } from "@/components/orders/OrdersModule";
 
 export default function OrdersPage() {
-  return (
-    <ModulePlaceholder
-      title="Pedidos"
-      description="Consulta y operación administrativa controlada sobre órdenes existentes."
-    />
-  );
+  return <OrdersModule />;
 }

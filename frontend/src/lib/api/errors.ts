@@ -84,6 +84,40 @@ export function productDeleteErrorMessage(caught: unknown): string {
   return mutationErrorMessage(caught, "No se pudo eliminar el producto.");
 }
 
+function detailReason(details: Record<string, unknown>): string {
+  return typeof details.reason === "string" ? details.reason : "";
+}
+
+export function orderDeleteErrorMessage(caught: unknown): string {
+  if (!(caught instanceof ApiClientError)) {
+    return "No se pudo eliminar el pedido.";
+  }
+  const { code, details } = caught.error;
+  if (code === "INVALID_ORDER_STATE") {
+    return "Solo los pedidos cancelados pueden eliminarse.";
+  }
+  if (code === "RESOURCE_IN_USE") {
+    const reason = detailReason(details);
+    if (reason === "payments") {
+      return "No se puede eliminar el pedido porque tiene pagos asociados.";
+    }
+    if (reason === "webhook_events") {
+      return "No se puede eliminar el pedido porque tiene eventos de pago asociados.";
+    }
+    if (reason === "stock_reservations") {
+      return "No se puede eliminar el pedido porque tiene reservas de stock activas o consumidas.";
+    }
+  }
+  return mutationErrorMessage(caught, "No se pudo eliminar el pedido.");
+}
+
+export function orderCancelErrorMessage(caught: unknown): string {
+  if (caught instanceof ApiClientError && caught.error.code === "INVALID_ORDER_STATE") {
+    return "El pedido no puede cancelarse desde su estado actual.";
+  }
+  return mutationErrorMessage(caught, "No se pudo cancelar el pedido.");
+}
+
 export function categoryDeleteErrorMessage(caught: unknown): string {
   if (
     caught instanceof ApiClientError &&
