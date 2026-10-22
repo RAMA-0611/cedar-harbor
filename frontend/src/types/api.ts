@@ -82,6 +82,54 @@ export type UpdateCategoryPayload = {
   is_active?: boolean;
 };
 
+export type AdminProduct = {
+  id: string;
+  category_id: string;
+  sku: string;
+  name: string;
+  description: string | null;
+  brand: string | null;
+  condition: string | null;
+  unit: string | null;
+  price: string;
+  currency: "COP";
+  tax_rate: string;
+  stock_quantity: number;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type CreateProductPayload = {
+  category_id: string;
+  sku: string;
+  name: string;
+  description?: string | null;
+  brand?: string | null;
+  condition?: string | null;
+  unit?: string | null;
+  price: string;
+  currency: "COP";
+  tax_rate: string;
+  stock_quantity: number;
+  is_active: boolean;
+};
+
+export type UpdateProductPayload = {
+  category_id?: string;
+  sku?: string;
+  name?: string;
+  description?: string | null;
+  brand?: string | null;
+  condition?: string | null;
+  unit?: string | null;
+  price?: string;
+  currency?: "COP";
+  tax_rate?: string;
+  stock_quantity?: number;
+  is_active?: boolean;
+};
+
 export type AdminResourceResponse<T> = {
   data: T;
 };

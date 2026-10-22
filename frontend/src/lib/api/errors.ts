@@ -30,6 +30,9 @@ function friendlyFieldMessage(field: string, message: string): string {
   if (field === "slug" && taken) {
     return "Este slug ya está en uso.";
   }
+  if (field === "sku" && taken) {
+    return "Este SKU ya está registrado.";
+  }
   return message;
 }
 
@@ -69,6 +72,16 @@ export function userDeleteErrorMessage(caught: unknown, isSelf: boolean): string
     return "No puede eliminar su propia cuenta.";
   }
   return mutationErrorMessage(caught, "No se pudo eliminar el usuario.");
+}
+
+export function productDeleteErrorMessage(caught: unknown): string {
+  if (
+    caught instanceof ApiClientError &&
+    (caught.error.status === 409 || caught.error.code === "RESOURCE_IN_USE")
+  ) {
+    return "No se puede eliminar este producto porque está siendo utilizado por información del sistema.";
+  }
+  return mutationErrorMessage(caught, "No se pudo eliminar el producto.");
 }
 
 export function categoryDeleteErrorMessage(caught: unknown): string {

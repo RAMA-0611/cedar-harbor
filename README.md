@@ -84,7 +84,7 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 | Dashboard admin | IMPLEMENTADO |
 | Usuarios UI CRUD | IMPLEMENTADO |
 | Categorías UI CRUD | IMPLEMENTADO |
-| Productos UI CRUD | PENDIENTE |
+| Productos UI CRUD | IMPLEMENTADO |
 | Pedidos UI CRUD | PENDIENTE |
 | Pasarela sandbox | PENDIENTE / issue #9 |
 | Webhook | PENDIENTE / issue #9 |
@@ -340,7 +340,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Tecnología | Uso |
 |---|---|
 | Pasarela sandbox / webhooks / conciliación | Issue #9 |
-| CRUD visual admin | Productos, pedidos |
+| CRUD visual admin | Pedidos |
 | Playwright | Pruebas E2E |
 
 Playwright todavía no está incorporado al repositorio.

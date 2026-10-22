@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
+import { ProductsModule } from "@/components/products/ProductsModule";
 
 export default function ProductsPage() {
-  return (
-    <ModulePlaceholder
-      title="Productos"
-      description="Catálogo administrativo de productos industriales publicados."
-    />
-  );
+  return <ProductsModule />;
 }
