@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 !.env.testing.example
+!.env.e2e.example
 *.pem
 *.key
 *.crt

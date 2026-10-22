@@ -2,10 +2,11 @@
 
 | Base | Uso |
 |---|---|
-| `rotor` | desarrollo / demo local |
+| `rotor` | desarrollo / demo local. Sin tests destructivos. |
 | `rotor_testing` | **solo** PHPUnit |
+| `rotor_e2e` | **solo** Playwright (`php artisan e2e:reset` + `npm run test:e2e`) |
 
-`php artisan test` **nunca** debe usar `rotor`.
+`php artisan test` **nunca** debe usar `rotor` ni `rotor_e2e`. Playwright **nunca** debe usar `rotor` ni `rotor_testing`.
 
 Durante MVP-0, `RefreshDatabase` heredó `backend/.env` y vació datos de dominio en `rotor`. El dump custom los recuperó. MVP-1 aísla la suite.
 
@@ -54,6 +55,14 @@ Refusing to run tests against non-testing database.
 ```
 
 si `APP_ENV` no es `testing`, la conexión no es `pgsql`, o la base no es exactamente `rotor_testing`.
+
+El reset E2E (`php artisan e2e:reset`) carga `backend/.env.e2e` y aborta con:
+
+```text
+Refusing E2E reset outside rotor_e2e.
+```
+
+salvo que `APP_ENV=e2e` y `current_database()` sea exactamente `rotor_e2e`. El rol `rotor` no recibe `CREATEDB`.
 
 ## Safety
 
