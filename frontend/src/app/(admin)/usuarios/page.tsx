@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
+import { UsersModule } from "@/components/users/UsersModule";
 
 export default function UsersPage() {
-  return (
-    <ModulePlaceholder
-      title="Usuarios"
-      description="Cuentas del sistema y control de roles ADMIN/CUSTOMER."
-    />
-  );
+  return <UsersModule />;
 }
