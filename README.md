@@ -178,6 +178,7 @@ La suite aborta con `Refusing to run tests against non-testing database.` si el 
 - `/api/admin/products`
 - `/api/admin/customers`
 - `/api/admin/users`
+- `GET/PATCH/DELETE /api/admin/orders` (sin `POST` admin; CREATE es `POST /api/orders`)
 
 **Cart** (`auth:sanctum` + rol `CUSTOMER` con perfil)
 
@@ -197,7 +198,7 @@ La suite aborta con `Refusing to run tests against non-testing database.` si el 
 - `GET /api/orders/{orderId}/status`
 - `POST /api/orders/{orderId}/cancel`
 
-**Total API:** 34 rutas / 34 operaciones OpenAPI.
+**Total API:** 38 rutas / 38 operaciones OpenAPI.
 
 No se afirma transición a `PAID` ni pasarela sandbox en E3 (issue #9).
 

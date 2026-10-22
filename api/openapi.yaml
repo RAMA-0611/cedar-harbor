@@ -120,6 +120,11 @@ tags:
     description: Administrative CRUD for customers (ADMIN role).
   - name: Admin Users
     description: Administrative CRUD for users (ADMIN role).
+  - name: Admin Orders
+    description: |
+      Administrative read/update/delete of existing orders (ADMIN role).
+      Order CREATE remains `POST /api/orders` for CUSTOMER. There is no
+      `POST /api/admin/orders`. ADMIN cannot mark PAID or FULFILLED.
   - name: Cart
     description: Authenticated shopping cart and temporary stock reservations.
   - name: Checkout
@@ -962,6 +967,209 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/admin/orders:
+    get:
+      tags: [Admin Orders]
+      operationId: adminListOrders
+      summary: List orders
+      description: |
+        Paginates real orders newest first (`created_at` DESC). Requires ADMIN.
+
+        Filters: `status`, `customer_id`, `search` (order_number, customer_name,
+        customer_email). Default `per_page` is 20 (max 100).
+
+        Does not expose idempotency keys or hashes. Create remains
+        `POST /api/orders` (CUSTOMER).
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - name: customer_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+      responses:
+        "200":
+          description: Paginated order list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrderListResponse"
+              examples:
+                sample:
+                  value:
+                    data:
+                      - id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+                        order_number: "RTR-20260918-0001"
+                        status: PENDING_PAYMENT
+                        currency: "COP"
+                        subtotal: "90000.00"
+                        tax_total: "17100.00"
+                        total: "107100.00"
+                        customer:
+                          name: "Cliente Demo Rotor"
+                          email: "cliente.demo@example.test"
+                          phone: "+570000000000"
+                          document_type: "CC"
+                          document_number: "1000000000"
+                        delivery:
+                          mode: PICKUP
+                          address: null
+                        created_at: "2026-09-18T15:00:00Z"
+                        updated_at: "2026-09-18T15:00:00Z"
+                        cancelled_at: null
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total: 1
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/orders/{orderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrderId"
+    get:
+      tags: [Admin Orders]
+      operationId: adminGetOrder
+      summary: Get any order
+      description: |
+        Returns one order for ADMIN regardless of customer ownership.
+        Invalid UUID → 400. Missing → 404. Does not expose idempotency fields.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Order found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrder"
+              examples:
+                pending:
+                  $ref: "#/components/examples/AdminOrderPendingPayment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Admin Orders]
+      operationId: adminUpdateOrder
+      summary: Update allowed order fields
+      description: |
+        Partial update of commercial snapshot contact/delivery fields.
+        Totals, `order_number`, `customer_id`, item snapshots, and idempotency
+        fields are rejected (422).
+
+        `status` may only be `CANCELLED`. That uses the same cancellation
+        rule as CUSTOMER (`PENDING_PAYMENT`/`DRAFT` → `CANCELLED`, ACTIVE
+        reservations → RELEASED). Already `CANCELLED` is idempotent for ADMIN.
+        ADMIN cannot set `PAID` or `FULFILLED`.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminOrderUpdateRequest"
+            examples:
+              phone:
+                value:
+                  customer_phone: "+57-300-222-3333"
+              cancel:
+                value:
+                  status: CANCELLED
+      responses:
+        "200":
+          description: Order updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrder"
+              examples:
+                updated:
+                  $ref: "#/components/examples/AdminOrderPendingPayment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Admin Orders]
+      operationId: adminDeleteOrder
+      summary: Delete a cancelled order
+      description: |
+        Hard-deletes only when `status=CANCELLED`, there are no payments,
+        no webhook_events, and no ACTIVE/CONSUMED stock reservations.
+        `order_items` use `restrictOnDelete`, so they are deleted explicitly
+        in the same transaction. Other statuses return `INVALID_ORDER_STATE`.
+        Payments/webhooks/blocking reservations return `RESOURCE_IN_USE`.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Order deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/cart:
     get:
       tags: [Cart]
@@ -1400,6 +1608,7 @@ paths:
       summary: Create order from validated cart
       description: |
         Creates an order from the authenticated CUSTOMER's ACTIVE cart.
+        This is the only CREATE operation. There is no `POST /api/admin/orders`.
 
         Successful responses use HTTP 201 with `status: PENDING_PAYMENT`
         (including idempotent replays of the same key + same payload).
@@ -1895,6 +2104,37 @@ components:
             line_total: "107100.00"
         created_at: "2026-09-18T15:00:00Z"
         updated_at: "2026-09-18T15:20:00Z"
+    AdminOrderPendingPayment:
+      summary: Admin view of a pending order
+      value:
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        order_number: "RTR-20260918-0001"
+        status: PENDING_PAYMENT
+        currency: "COP"
+        subtotal: "90000.00"
+        tax_total: "17100.00"
+        total: "107100.00"
+        customer:
+          name: "Cliente Demo Rotor"
+          email: "cliente.demo@example.test"
+          phone: "+570000000000"
+          document_type: "CC"
+          document_number: "1000000000"
+        delivery:
+          mode: PICKUP
+          address: null
+        items:
+          - id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+            product_id: "11111111-1111-4111-8111-111111111111"
+            sku: "ROTOR-BRG-6205"
+            product_name: "Rodamiento industrial"
+            quantity: 2
+            unit_price: "45000.00"
+            tax_amount: "17100.00"
+            line_total: "107100.00"
+        created_at: "2026-09-18T15:00:00Z"
+        updated_at: "2026-09-18T15:00:00Z"
+        cancelled_at: null
 
   schemas:
     MoneyAmount:
@@ -2755,3 +2995,109 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    AdminOrder:
+      type: object
+      required:
+        - id
+        - order_number
+        - status
+        - currency
+        - subtotal
+        - tax_total
+        - total
+        - customer
+        - delivery
+        - created_at
+        - updated_at
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        subtotal:
+          $ref: "#/components/schemas/MoneyAmount"
+        tax_total:
+          $ref: "#/components/schemas/MoneyAmount"
+        total:
+          $ref: "#/components/schemas/MoneyAmount"
+        customer:
+          $ref: "#/components/schemas/CustomerData"
+        delivery:
+          $ref: "#/components/schemas/DeliveryData"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        cancelled_at:
+          type: ["string", "null"]
+          format: date-time
+
+    AdminOrderListResponse:
+      type: object
+      required: [data, meta]
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOrder"
+        meta:
+          type: object
+          required: [page, per_page, total]
+          additionalProperties: false
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            per_page:
+              type: integer
+              minimum: 1
+            total:
+              type: integer
+              minimum: 0
+
+    AdminOrderUpdateRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Allowed PATCH fields. Totals, identifiers, item snapshots, and
+        idempotency fields are forbidden. `status` accepts only CANCELLED.
+      properties:
+        customer_name:
+          type: string
+          maxLength: 160
+        customer_email:
+          type: string
+          format: email
+          maxLength: 254
+        customer_phone:
+          type: string
+          maxLength: 30
+        customer_document_type:
+          type: string
+          maxLength: 10
+        customer_document_number:
+          type: string
+          maxLength: 30
+        delivery_mode:
+          type: string
+          enum: [PICKUP, COORDINATED_SHIPPING]
+        delivery_address:
+          type: ["string", "null"]
+          maxLength: 255
+        status:
+          type: string
+          enum: [CANCELLED]

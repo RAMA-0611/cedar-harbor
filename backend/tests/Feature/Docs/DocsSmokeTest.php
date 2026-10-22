@@ -28,5 +28,12 @@ class DocsSmokeTest extends TestCase
         $this->assertStringContainsString('application/yaml', (string) $response->headers->get('content-type'));
         $this->assertStringContainsString('openapi:', $response->getContent());
         $this->assertStringContainsString('/api/products', $response->getContent());
+        $yaml = $response->getContent();
+        $this->assertStringContainsString('/api/admin/orders', $yaml);
+        $this->assertStringContainsString('adminListOrders', $yaml);
+        $this->assertStringContainsString('adminGetOrder', $yaml);
+        $this->assertStringContainsString('adminUpdateOrder', $yaml);
+        $this->assertStringContainsString('adminDeleteOrder', $yaml);
+        $this->assertStringNotContainsString('adminCreateOrder', $yaml);
     }
 }
