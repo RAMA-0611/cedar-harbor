@@ -82,7 +82,10 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 | Frontend Next.js | IMPLEMENTADO base |
 | Login Sanctum | IMPLEMENTADO |
 | Dashboard admin | IMPLEMENTADO |
-| CRUD visual admin | PENDIENTE siguientes incrementos |
+| Usuarios UI CRUD | IMPLEMENTADO |
+| Categorías UI CRUD | IMPLEMENTADO |
+| Productos UI CRUD | PENDIENTE |
+| Pedidos UI CRUD | PENDIENTE |
 | Pasarela sandbox | PENDIENTE / issue #9 |
 | Webhook | PENDIENTE / issue #9 |
 | Conciliación | PENDIENTE / issue #9 |
@@ -337,7 +340,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Tecnología | Uso |
 |---|---|
 | Pasarela sandbox / webhooks / conciliación | Issue #9 |
-| CRUD visual admin | Usuarios, productos, pedidos, categorías |
+| CRUD visual admin | Productos, pedidos |
 | Playwright | Pruebas E2E |
 
 Playwright todavía no está incorporado al repositorio.

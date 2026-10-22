@@ -1,3 +1,5 @@
+import type { UserRole } from "@/types/auth";
+
 export type ApiError = {
   code: string;
   message: string;
@@ -31,4 +33,55 @@ export type AdminOrderListResponse = {
 
 export type CatalogProductsResponse = {
   data?: unknown[];
+};
+
+export type AdminUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AdminCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type CreateUserPayload = {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+};
+
+export type UpdateUserPayload = {
+  name?: string;
+  email?: string;
+  password?: string;
+  role?: UserRole;
+};
+
+export type CreateCategoryPayload = {
+  name: string;
+  slug: string;
+  description?: string | null;
+  is_active: boolean;
+};
+
+export type UpdateCategoryPayload = {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  is_active?: boolean;
+};
+
+export type AdminResourceResponse<T> = {
+  data: T;
 };
