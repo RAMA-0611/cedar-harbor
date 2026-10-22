@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\CustomerController as AdminCustomerController;
+use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
@@ -28,6 +29,11 @@ Route::middleware(['auth:sanctum', 'role:ADMIN'])->prefix('admin')->group(functi
     Route::apiResource('products', AdminProductController::class);
     Route::apiResource('customers', AdminCustomerController::class);
     Route::apiResource('users', AdminUserController::class);
+
+    Route::get('orders', [AdminOrderController::class, 'index']);
+    Route::get('orders/{orderId}', [AdminOrderController::class, 'show']);
+    Route::patch('orders/{orderId}', [AdminOrderController::class, 'update']);
+    Route::delete('orders/{orderId}', [AdminOrderController::class, 'destroy']);
 });
 
 Route::middleware(['auth:sanctum', 'role:CUSTOMER'])->group(function () {
