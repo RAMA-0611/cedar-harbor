@@ -1,10 +1,5 @@
-import { ModulePlaceholder } from "@/components/admin/ModulePlaceholder";
+import { CategoriesModule } from "@/components/categories/CategoriesModule";
 
 export default function CategoriesPage() {
-  return (
-    <ModulePlaceholder
-      title="Categorías"
-      description="Clasificación del catálogo utilizada por productos y filtros."
-    />
-  );
+  return <CategoriesModule />;
 }
