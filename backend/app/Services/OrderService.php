@@ -187,28 +187,48 @@ class OrderService
                 throw new NotFoundHttpException('The requested resource was not found.');
             }
 
-            if (! in_array($order->status, ['DRAFT', 'PENDING_PAYMENT'], true)) {
-                throw ApiException::conflict(
-                    'INVALID_ORDER_STATE',
-                    'Order cannot be cancelled from its current state.',
-                    ['status' => $order->status],
-                );
+            return $this->applyCancellation($order, allowIdempotentCancelled: false);
+        });
+    }
+
+    /**
+     * Shared cancellation rule. Caller must hold a row lock on $order.
+     */
+    public function applyCancellation(Order $order, bool $allowIdempotentCancelled = false): Order
+    {
+        if ($order->status === 'CANCELLED') {
+            if ($allowIdempotentCancelled) {
+                return $order->fresh()->load('items');
             }
 
-            $order->status = 'CANCELLED';
-            $order->cancelled_at = now();
-            $order->save();
+            throw ApiException::conflict(
+                'INVALID_ORDER_STATE',
+                'Order cannot be cancelled from its current state.',
+                ['status' => $order->status],
+            );
+        }
 
-            StockReservation::query()
-                ->where('order_id', $order->id)
-                ->where('status', 'ACTIVE')
-                ->update([
-                    'status' => 'RELEASED',
-                    'released_at' => now(),
-                ]);
+        if (! in_array($order->status, ['DRAFT', 'PENDING_PAYMENT'], true)) {
+            throw ApiException::conflict(
+                'INVALID_ORDER_STATE',
+                'Order cannot be cancelled from its current state.',
+                ['status' => $order->status],
+            );
+        }
 
-            return $order->fresh()->load('items');
-        });
+        $order->status = 'CANCELLED';
+        $order->cancelled_at = now();
+        $order->save();
+
+        StockReservation::query()
+            ->where('order_id', $order->id)
+            ->where('status', 'ACTIVE')
+            ->update([
+                'status' => 'RELEASED',
+                'released_at' => now(),
+            ]);
+
+        return $order->fresh()->load('items');
     }
 
     private function generateOrderNumber(): string
