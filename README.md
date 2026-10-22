@@ -62,30 +62,33 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 
 ## Project status
 
-### Estado actual — Entrega 3
+### Estado actual — MVP integrado
+
+El MVP académico requerido está **completo** (login, dashboard, CRUD admin, catálogo, carrito/checkout/orden hasta `PENDING_PAYMENT`, OpenAPI, PHPUnit, Playwright). El roadmap transaccional de la Ruta F **no** está cerrado: pasarela sandbox, webhook y conciliación siguen en issue **#9**.
 
 | Componente | Estado |
 |---|---|
 | PostgreSQL | IMPLEMENTADO |
 | Migraciones de dominio | IMPLEMENTADAS |
-| Laravel API | FUNCIONAL |
+| Laravel API | IMPLEMENTADO |
 | Sanctum | IMPLEMENTADO |
 | ApiError | IMPLEMENTADO |
-| Admin CRUD ×4 | IMPLEMENTADO |
+| Login | IMPLEMENTADO |
+| Dashboard | IMPLEMENTADO |
+| Usuarios UI CRUD | IMPLEMENTADO |
+| Categorías UI CRUD | IMPLEMENTADO |
+| Productos UI CRUD | IMPLEMENTADO |
+| Pedidos system CRUD | IMPLEMENTADO |
 | Catálogo público | IMPLEMENTADO |
 | Carrito persistente | IMPLEMENTADO |
 | Reservas de stock | IMPLEMENTADAS |
 | Checkout | IMPLEMENTADO |
 | Orden | IMPLEMENTADA hasta `PENDING_PAYMENT` |
 | Idempotencia | IMPLEMENTADA |
-| Documentación interactiva (`/docs`) | IMPLEMENTADA |
-| Frontend Next.js | IMPLEMENTADO base |
-| Login Sanctum | IMPLEMENTADO |
-| Dashboard admin | IMPLEMENTADO |
-| Usuarios UI CRUD | IMPLEMENTADO |
-| Categorías UI CRUD | IMPLEMENTADO |
-| Productos UI CRUD | IMPLEMENTADO |
-| Pedidos | IMPLEMENTADO A NIVEL DE SISTEMA |
+| Swagger/OpenAPI | IMPLEMENTADO |
+| PHPUnit | IMPLEMENTADO |
+| Playwright E2E | IMPLEMENTADO |
+| Backup | IMPLEMENTADO |
 | Pasarela sandbox | PENDIENTE / issue #9 |
 | Webhook | PENDIENTE / issue #9 |
 | Conciliación | PENDIENTE / issue #9 |
@@ -93,6 +96,8 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 API en `main`: **38** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Admin Orders` 4 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
 
 La interfaz `/pedidos` cubre listado, detalle, actualización de contacto/entrega, cancelación y eliminación controlada. **CREATE** sigue siendo el flujo transaccional `CUSTOMER` (`carrito → checkout → POST /api/orders`). No existe `POST /api/admin/orders`.
+
+Matriz, guion de demo y evidencia: [`docs/evidence/MVP_FINAL_REQUIREMENTS_MATRIX.md`](./docs/evidence/MVP_FINAL_REQUIREMENTS_MATRIX.md), [`docs/evidence/MVP_FINAL_DEMO_SCRIPT.md`](./docs/evidence/MVP_FINAL_DEMO_SCRIPT.md), [`docs/evidence/mvp7-final-validation.md`](./docs/evidence/mvp7-final-validation.md).
 
 ### Snapshot histórico — cierre Entrega 2
 
@@ -114,7 +119,7 @@ El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) 
 
 ---
 
-## Entrega 3 — MVP backend
+## Entrega 3 — MVP backend (histórico, v0.3.0)
 
 Documentación interactiva (fuente única `api/openapi.yaml`):
 
@@ -171,7 +176,15 @@ Evidencia: [`docs/evidence/mvp3-frontend-auth-dashboard.md`](./docs/evidence/mvp
 
 ### Testing
 
-PHPUnit usa PostgreSQL `rotor_testing`, **nunca** `rotor`.
+Tres bases PostgreSQL locales, sin compartir resets:
+
+| Base | Uso |
+|---|---|
+| `rotor` | desarrollo / demo manual. **No** tests destructivos. |
+| `rotor_testing` | exclusivamente PHPUnit |
+| `rotor_e2e` | exclusivamente Playwright |
+
+PHPUnit:
 
 ```powershell
 # crear rotor_testing como superuser local (ver docs/operations/TEST_DATABASE.md)
@@ -180,7 +193,22 @@ copy .env.testing.example .env.testing
 php artisan test
 ```
 
-La suite aborta con `Refusing to run tests against non-testing database.` si el entorno apunta a `rotor` u otra base. Detalle: [`docs/operations/TEST_DATABASE.md`](./docs/operations/TEST_DATABASE.md).
+La suite aborta con `Refusing to run tests against non-testing database.` si el entorno apunta a `rotor` u otra base.
+
+Playwright (Chromium 1.64.1, Laravel `:8001`, Next.js `:3001`):
+
+```powershell
+cd backend
+copy .env.e2e.example .env.e2e
+# completar APP_KEY, DB_PASSWORD y E2E_*_PASSWORD locales (archivo ignorado)
+
+cd ..\frontend
+npm run test:e2e
+```
+
+`npm run test:e2e` ejecuta `php artisan e2e:reset` y **aborta** con `Refusing E2E reset outside rotor_e2e.` si `current_database()` no es `rotor_e2e`. El rol `rotor` no tiene `CREATEDB`. No versionar passwords.
+
+Detalle: [`docs/operations/TEST_DATABASE.md`](./docs/operations/TEST_DATABASE.md).
 
 ### Endpoints E3 disponibles en main
 
@@ -304,8 +332,8 @@ Vista conceptual (no representa topología de servidores reales):
 ```
 
 - **Backend API:** Laravel 12 (PHP) — PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito/reservas, checkout, órdenes hasta `PENDING_PAYMENT` e idempotencia. Pagos sandbox / webhooks / conciliación pendientes (issue #9).
-- **Frontend:** Next.js 16 / React 19 en `frontend/` (login Sanctum, shell ADMIN, dashboard real). `web/` es el prototipo histórico E2.
-- **Base de datos:** PostgreSQL local `rotor` con migraciones de dominio aplicadas (ver `docs/decisiones.md`).
+- **Frontend:** Next.js 16 / React 19 en `frontend/` (login Sanctum, shell ADMIN, CRUD). `web/` es el prototipo histórico E2.
+- **Base de datos:** PostgreSQL local `rotor` (demo), `rotor_testing` (PHPUnit), `rotor_e2e` (Playwright). Ver `docs/decisiones.md`.
 - **Autenticación API:** Laravel Sanctum (sesión SPA / cookie).
 
 Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
@@ -336,16 +364,15 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | PHPUnit | Suite Feature del backend |
 | Next.js 16 / React 19 | Aplicación administrativa en `frontend/` |
 | TypeScript / Tailwind CSS | Tipado y estilos del frontend |
+| Playwright 1.64.1 | E2E Chromium sobre `rotor_e2e` |
 
 ### Pendiente (siguientes gates)
 
 | Tecnología | Uso |
 |---|---|
 | Pasarela sandbox / webhooks / conciliación | Issue #9 |
-| CRUD visual admin | Completado (usuarios, categorías, productos, pedidos controlados) |
-| Playwright | Pruebas E2E |
 
-Playwright todavía no está incorporado al repositorio.
+CRUD visual admin y Playwright E2E ya están incorporados.
 
 ---
 
@@ -397,7 +424,7 @@ Estructura actual:
 ├── api/
 │   └── openapi.yaml        # Contrato OpenAPI 3.1
 ├── backend/                # Laravel 12 API (Auth, Catalog, Admin CRUD, Cart)
-├── frontend/               # Aplicación Next.js MVP (auth + dashboard)
+├── frontend/               # Aplicación Next.js MVP (auth + CRUD + e2e/)
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── architecture/
@@ -408,7 +435,7 @@ Estructura actual:
 │   ├── decisiones.md       # Decisiones de arquitectura (ADR-E2)
 │   ├── evidence/           # Evidencias de validación
 │   └── wireframes/         # Catálogo, detalle y checkout
-├── tests/                  # Reservado para pruebas E2E
+├── tests/                  # Reservado (Playwright vive en frontend/e2e)
 └── web/                    # Prototipo histórico de la Entrega 2
     ├── index.html          # Catálogo
     ├── detalle.html        # Detalle de producto
