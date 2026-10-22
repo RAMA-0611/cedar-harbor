@@ -85,12 +85,14 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 | Usuarios UI CRUD | IMPLEMENTADO |
 | Categorías UI CRUD | IMPLEMENTADO |
 | Productos UI CRUD | IMPLEMENTADO |
-| Pedidos UI CRUD | PENDIENTE |
+| Pedidos | IMPLEMENTADO A NIVEL DE SISTEMA |
 | Pasarela sandbox | PENDIENTE / issue #9 |
 | Webhook | PENDIENTE / issue #9 |
 | Conciliación | PENDIENTE / issue #9 |
 
 API en `main`: **38** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Admin Orders` 4 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
+
+La interfaz `/pedidos` cubre listado, detalle, actualización de contacto/entrega, cancelación y eliminación controlada. **CREATE** sigue siendo el flujo transaccional `CUSTOMER` (`carrito → checkout → POST /api/orders`). No existe `POST /api/admin/orders`.
 
 ### Snapshot histórico — cierre Entrega 2
 
@@ -340,7 +342,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Tecnología | Uso |
 |---|---|
 | Pasarela sandbox / webhooks / conciliación | Issue #9 |
-| CRUD visual admin | Pedidos |
+| CRUD visual admin | Completado (usuarios, categorías, productos, pedidos controlados) |
 | Playwright | Pruebas E2E |
 
 Playwright todavía no está incorporado al repositorio.
