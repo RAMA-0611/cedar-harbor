@@ -79,12 +79,15 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 | Orden | IMPLEMENTADA hasta `PENDING_PAYMENT` |
 | Idempotencia | IMPLEMENTADA |
 | Documentación interactiva (`/docs`) | IMPLEMENTADA |
-| Frontend Next.js | PENDIENTE |
+| Frontend Next.js | IMPLEMENTADO base |
+| Login Sanctum | IMPLEMENTADO |
+| Dashboard admin | IMPLEMENTADO |
+| CRUD visual admin | PENDIENTE siguientes incrementos |
 | Pasarela sandbox | PENDIENTE / issue #9 |
 | Webhook | PENDIENTE / issue #9 |
 | Conciliación | PENDIENTE / issue #9 |
 
-API en `main`: **34** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
+API en `main`: **38** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Admin Orders` 4 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
 
 ### Snapshot histórico — cierre Entrega 2
 
@@ -99,10 +102,10 @@ API en `main`: **34** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Cart` 4
 | Mock del contrato con Prism | VALIDADO |
 | Modelo de datos PostgreSQL | DOCUMENTADO (diseño) |
 | Backend Laravel / persistencia / Sanctum | aún no entregados en E2 (ver estado E3 arriba) |
-| Frontend Next.js (`frontend/`) | PLANIFICADO |
+| Frontend Next.js (`frontend/`) | PLANIFICADO en E2; IMPLEMENTADO base en E3 |
 | Pasarela sandbox real | NO IMPLEMENTADA |
 
-El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. La API Laravel de Entrega 3 es el camino vigente hasta orden `PENDING_PAYMENT` (pagos sandbox en #9).
+El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. `web/` permanece como prototipo histórico; `frontend/` es la aplicación MVP integrada (Next.js + Sanctum). La API Laravel de Entrega 3 es el camino vigente hasta orden `PENDING_PAYMENT` (pagos sandbox en #9).
 
 ---
 
@@ -145,6 +148,21 @@ php artisan serve
 ```
 
 Abrir `http://127.0.0.1:8000/docs`.
+
+### Setup frontend (MVP)
+
+`web/` es el prototipo E2. El frontend vigente está en `frontend/`.
+
+```bash
+cd frontend
+copy .env.example .env.local
+npm ci
+npm run dev
+```
+
+Abrir `http://127.0.0.1:3000`. Requiere la API en `http://127.0.0.1:8000`. No versionar contraseñas.
+
+Evidencia: [`docs/evidence/mvp3-frontend-auth-dashboard.md`](./docs/evidence/mvp3-frontend-auth-dashboard.md).
 
 ### Testing
 
@@ -281,7 +299,7 @@ Vista conceptual (no representa topología de servidores reales):
 ```
 
 - **Backend API:** Laravel 12 (PHP) — PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito/reservas, checkout, órdenes hasta `PENDING_PAYMENT` e idempotencia. Pagos sandbox / webhooks / conciliación pendientes (issue #9).
-- **Frontend:** Next.js / React — planificado; la Entrega 2 usa el prototipo estático de `web/`.
+- **Frontend:** Next.js 16 / React 19 en `frontend/` (login Sanctum, shell ADMIN, dashboard real). `web/` es el prototipo histórico E2.
 - **Base de datos:** PostgreSQL local `rotor` con migraciones de dominio aplicadas (ver `docs/decisiones.md`).
 - **Autenticación API:** Laravel Sanctum (sesión SPA / cookie).
 
@@ -311,17 +329,18 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Swagger UI | Documentación interactiva en `/docs` |
 | BCMath | Cálculos monetarios exactos (HALF_UP) |
 | PHPUnit | Suite Feature del backend |
+| Next.js 16 / React 19 | Aplicación administrativa en `frontend/` |
+| TypeScript / Tailwind CSS | Tipado y estilos del frontend |
 
-### Pendiente (siguiente gates / frontend)
+### Pendiente (siguientes gates)
 
 | Tecnología | Uso |
 |---|---|
 | Pasarela sandbox / webhooks / conciliación | Issue #9 |
-| Next.js 16 / React 19 | Aplicación web |
-| TypeScript / Tailwind CSS | Tipado y estilos del frontend |
+| CRUD visual admin | Usuarios, productos, pedidos, categorías |
 | Playwright | Pruebas E2E |
 
-Next.js y Playwright todavía no están incorporados al repositorio.
+Playwright todavía no está incorporado al repositorio.
 
 ---
 
@@ -373,7 +392,7 @@ Estructura actual:
 ├── api/
 │   └── openapi.yaml        # Contrato OpenAPI 3.1
 ├── backend/                # Laravel 12 API (Auth, Catalog, Admin CRUD, Cart)
-├── frontend/               # Reservado para la aplicación Next.js (vacío)
+├── frontend/               # Aplicación Next.js MVP (auth + dashboard)
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── architecture/
@@ -385,7 +404,7 @@ Estructura actual:
 │   ├── evidence/           # Evidencias de validación
 │   └── wireframes/         # Catálogo, detalle y checkout
 ├── tests/                  # Reservado para pruebas E2E
-└── web/                    # Prototipo de la Entrega 2
+└── web/                    # Prototipo histórico de la Entrega 2
     ├── index.html          # Catálogo
     ├── detalle.html        # Detalle de producto
     ├── checkout.html       # Carrito y checkout
@@ -397,6 +416,23 @@ Estructura actual:
 ---
 
 ## Local setup
+
+### Aplicación MVP (frontend + API)
+
+```bash
+# Terminal 2 — API
+cd backend
+php artisan serve --host=127.0.0.1 --port=8000
+
+# Terminal 3 — Next.js
+cd frontend
+npm ci
+npm run dev
+```
+
+PostgreSQL debe estar disponible (terminal 1). Abrir http://127.0.0.1:3000.
+
+### Prototipo E2
 
 Para probar la Entrega 2 **no se necesita** el backend Laravel ni una base de datos.
 
@@ -445,7 +481,7 @@ Ejemplo: http://127.0.0.1:4010/api/products. Los endpoints protegidos exigen la 
 ### Contrato actual — Entrega 3
 
 - Fuente única: [`api/openapi.yaml`](./api/openapi.yaml)
-- **34** operaciones implementadas (paridad con `php artisan route:list --path=api`)
+- **38** operaciones implementadas (paridad con URIs `api/`)
 - Tags activos: Auth, Catalog, Admin*, Cart, Checkout, Orders
 - Endpoints de payment-intent / webhook / reconcile **no** forman parte del contrato activo E3 (reservados a #9; históricos en tag `v0.2.0`)
 
@@ -475,7 +511,7 @@ PostgreSQL es el motor de persistencia. El modelo está documentado (entidades, 
 
 ## Environment variables
 
-[`.env.example`](./.env.example) contiene una configuración de referencia con placeholders (PostgreSQL local y pasarela sandbox sin claves). `backend/.env.example` es la plantilla del backend Laravel.
+[`.env.example`](./.env.example) contiene una configuración de referencia con placeholders (PostgreSQL local y pasarela sandbox sin claves). `backend/.env.example` es la plantilla del backend Laravel. `frontend/.env.example` solo declara `NEXT_PUBLIC_API_BASE_URL`.
 
 Usa **únicamente placeholders**. Nunca commits con valores reales. Cualquier archivo `.env` real debe permanecer fuera del control de versiones.
 
