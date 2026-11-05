@@ -62,31 +62,51 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 
 ## Project status
 
-### Estado actual — V0.5 (rama de integración)
+### Estado actual — v0.5.0
 
-Storefront Next.js público **INTEGRATED** (API real). `web/` permanece **Historical E2 only**.
+Tag: [`v0.5.0`](https://github.com/RAMA-0611/cedar-harbor/releases/tag/v0.5.0) · Frontend: Next.js / React · Backend: Laravel 12 · DB: PostgreSQL · Auth: Sanctum (sesión/cookies + CSRF + roles).
+
+`web/` permanece **Historical E2 only**. La aplicación vigente es `frontend/` + `backend/`.
 
 | Componente | Estado |
 |---|---|
-| Storefront Next.js (`/`) | INTEGRATED |
-| Catálogo público | API real |
-| Carrito / checkout / order | API real |
+| Storefront Next.js (`/`) | IMPLEMENTADO / INTEGRADO |
+| Registro CUSTOMER (`/cliente/registro`) | IMPLEMENTADO |
+| Catálogo público | API real (PostgreSQL) |
+| Carrito | IMPLEMENTADO / PostgreSQL |
+| Checkout | IMPLEMENTADO |
+| Órdenes | IMPLEMENTADO |
 | Imágenes de producto | IMPLEMENTADO (`image_path` + storage público) |
-| ADMIN ↔ tienda sync | IMPLEMENTADO (misma DB) |
-| Payment intent Wompi | IMPLEMENTADO (código + tests) |
-| Webhook firmado | IMPLEMENTADO (código + tests) |
-| Conciliación | IMPLEMENTADO (código + tests) |
-| LIVE Wompi sandbox | BLOCKED_CREDENTIALS hasta llaves locales + túnel |
-| issue #9 | OPEN hasta LIVE_SANDBOX + webhook público confirmados |
-| PHPUnit / Playwright | ver evidencia del PR v0.5 |
+| ADMIN ↔ tienda sync | PASS (misma API / misma DB) |
+| Payment intent Wompi Sandbox | IMPLEMENTADO |
+| Webhook firmado Wompi | IMPLEMENTADO / LIVE VALIDATED |
+| Conciliación (`reconcile`) | IMPLEMENTADO / LIVE VALIDATED |
+| Exactly-once stock settlement | PASS |
+| LIVE Wompi Sandbox | PASS |
+| issue #9 | CLOSED / estado:hecho |
+| issue #44 | CLOSED / estado:hecho |
 
-**No** se afirma PRODUCTION PAYMENTS.
+Flujo real validado:
+
+```text
+Catálogo → registro/login CUSTOMER → carrito → checkout → orden
+  → Wompi Sandbox → webhook firmado → PAID → reserva CONSUMED
+  → stock → reconcile
+```
+
+ADMIN: Dashboard, Usuarios, Categorías, Productos (incl. imágenes), Pedidos.
+
+Evidencia LIVE (no sensible): `LIVE_WOMPI_SANDBOX=PASS`, `LIVE_WEBHOOK_RECEIVED=PASS`, `LIVE_WEBHOOK_SIGNATURE=PASS`, `LIVE_RECONCILE=PASS`, `LIVE_EXACTLY_ONCE=PASS`, `LIVE_ADMIN_PUBLIC_SYNC=PASS`.
+
+Los pagos están validados exclusivamente contra **Wompi Sandbox**. Project Rotor **no** procesa dinero de producción.
 
 La interfaz `/pedidos` cubre listado, detalle, actualización de contacto/entrega, cancelación y eliminación controlada. **CREATE** sigue siendo el flujo transaccional `CUSTOMER` (`carrito → checkout → POST /api/orders`). No existe `POST /api/admin/orders`.
 
 Matriz, guion de demo y evidencia: [`docs/evidence/MVP_FINAL_REQUIREMENTS_MATRIX.md`](./docs/evidence/MVP_FINAL_REQUIREMENTS_MATRIX.md), [`docs/evidence/MVP_FINAL_DEMO_SCRIPT.md`](./docs/evidence/MVP_FINAL_DEMO_SCRIPT.md), [`docs/evidence/mvp7-final-validation.md`](./docs/evidence/mvp7-final-validation.md).
 
 ### Snapshot histórico — cierre Entrega 2
+
+> Estado **histórico** de E2 / tag `v0.2.0`. No describe v0.5.0.
 
 | Componente | Estado (E2) |
 |---|---|
@@ -98,11 +118,11 @@ Matriz, guion de demo y evidencia: [`docs/evidence/MVP_FINAL_REQUIREMENTS_MATRIX
 | Contrato OpenAPI 3.1 (`api/openapi.yaml`) | COMPLETADO / VALIDADO |
 | Mock del contrato con Prism | VALIDADO |
 | Modelo de datos PostgreSQL | DOCUMENTADO (diseño) |
-| Backend Laravel / persistencia / Sanctum | aún no entregados en E2 (ver estado E3 arriba) |
-| Frontend Next.js (`frontend/`) | PLANIFICADO en E2; IMPLEMENTADO base en E3 |
-| Pasarela sandbox real | NO IMPLEMENTADA |
+| Backend Laravel / persistencia / Sanctum | aún no entregados en E2 |
+| Frontend Next.js (`frontend/`) | PLANIFICADO en E2 |
+| Pasarela sandbox real | NO IMPLEMENTADA *(histórico E2)* |
 
-El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. `web/` permanece como prototipo histórico; `frontend/` es la aplicación MVP integrada (Next.js + Sanctum). La API Laravel de Entrega 3 es el camino vigente hasta orden `PENDING_PAYMENT` (pagos sandbox en #9).
+El prototipo E2 usa 12 productos sintéticos locales (`web/datos/ejemplo.json`) y simula el pago en el navegador. `web/` permanece como prototipo histórico. En E3 original la API llegaba hasta `PENDING_PAYMENT` y la pasarela estaba pendiente (issue #9). **Desde v0.5.0**, storefront integrado, registro CUSTOMER, Wompi Sandbox, webhook firmado, reconcile y exactly-once stock están integrados y validados en sandbox.
 
 ---
 
@@ -236,9 +256,9 @@ Detalle: [`docs/operations/TEST_DATABASE.md`](./docs/operations/TEST_DATABASE.md
 - `GET /api/orders/{orderId}/status`
 - `POST /api/orders/{orderId}/cancel`
 
-**Total API:** 38 rutas / 38 operaciones OpenAPI.
+**Total API (cierre E3 / v0.3.0):** 38 rutas / 38 operaciones OpenAPI *(histórico)*.
 
-No se afirma transición a `PAID` ni pasarela sandbox en E3 (issue #9).
+> En E3 original no se afirmaba transición a `PAID` ni pasarela sandbox (issue #9). **Desde v0.5.0** existen payment-intent, webhook firmado y reconcile; el LIVE Sandbox quedó PASS y #9/#44 están cerrados.
 
 ### Credenciales
 
@@ -318,10 +338,11 @@ Vista conceptual (no representa topología de servidores reales):
                                    └────────────────────┘
 ```
 
-- **Backend API:** Laravel 12 (PHP) — PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito/reservas, checkout, órdenes hasta `PENDING_PAYMENT` e idempotencia. Pagos sandbox / webhooks / conciliación pendientes (issue #9).
-- **Frontend:** Next.js 16 / React 19 en `frontend/` (login Sanctum, shell ADMIN, CRUD). `web/` es el prototipo histórico E2.
+- **Backend API:** Laravel 12 (PHP) — PostgreSQL, Sanctum, ApiError, catálogo, CRUD admin, carrito/reservas, checkout, órdenes, payment-intent Wompi Sandbox, webhook firmado, reconcile e idempotencia / exactly-once stock.
+- **Frontend:** Next.js 16 / React 19 en `frontend/` (storefront público, registro/login CUSTOMER, carrito/checkout, shell ADMIN, CRUD). `web/` es el prototipo histórico E2.
 - **Base de datos:** PostgreSQL local `rotor` (demo), `rotor_testing` (PHPUnit), `rotor_e2e` (Playwright). Ver `docs/decisiones.md`.
-- **Autenticación API:** Laravel Sanctum (sesión SPA / cookie).
+- **Autenticación API:** Laravel Sanctum (sesión SPA / cookie + CSRF + roles).
+- **Pagos:** exclusivamente Wompi **Sandbox** (sin dinero de producción).
 
 Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
@@ -339,7 +360,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Redocly CLI, Spectral | Validación del contrato |
 | GitHub Pages | Publicación del prototipo |
 
-### Entrega 3 (implementado actualmente)
+### Entrega 3 → v0.5.0 (stack actual)
 
 | Tecnología | Uso |
 |---|---|
@@ -349,17 +370,12 @@ Más detalle en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 | Swagger UI | Documentación interactiva en `/docs` |
 | BCMath | Cálculos monetarios exactos (HALF_UP) |
 | PHPUnit | Suite Feature del backend |
-| Next.js 16 / React 19 | Aplicación administrativa en `frontend/` |
+| Next.js 16 / React 19 | Storefront + panel ADMIN en `frontend/` |
 | TypeScript / Tailwind CSS | Tipado y estilos del frontend |
 | Playwright 1.64.1 | E2E Chromium sobre `rotor_e2e` |
+| Wompi Sandbox | Web Checkout, webhook firmado y reconcile |
 
-### Pendiente (siguientes gates)
-
-| Tecnología | Uso |
-|---|---|
-| Pasarela sandbox / webhooks / conciliación | Issue #9 |
-
-CRUD visual admin y Playwright E2E ya están incorporados.
+CRUD visual admin, storefront, registro CUSTOMER, Wompi Sandbox y Playwright E2E están incorporados en v0.5.0. Issue #9 (pasarela sandbox) está **CLOSED**.
 
 ---
 
@@ -497,15 +513,16 @@ Ejemplo: http://127.0.0.1:4010/api/products. Los endpoints protegidos exigen la 
 
 ## API contract and validation
 
-### Contrato actual — Entrega 3
+### Contrato actual — v0.5.0
 
 - Fuente única: [`api/openapi.yaml`](./api/openapi.yaml)
-- **38** operaciones implementadas (paridad con URIs `api/`)
-- Tags activos: Auth, Catalog, Admin*, Cart, Checkout, Orders
-- Endpoints de payment-intent / webhook / reconcile **no** forman parte del contrato activo E3 (reservados a #9; históricos en tag `v0.2.0`)
+- **44** operaciones implementadas (paridad normalizada con URIs `api/`)
+- Tags activos: Auth (incl. register), Catalog, Admin*, Cart, Checkout, Orders, Payments
+- Payment-intent, webhook Wompi y reconcile forman parte del contrato activo desde v0.5.0
 
-### Contrato histórico — Entrega 2
+### Contrato histórico — Entrega 3 / Entrega 2
 
+- Cierre E3 / tag `v0.3.0`: **38** operaciones (aún sin payments activos; issue #9 pendiente en esa época)
 - Tag `v0.2.0`: contrato E2 con **14** operaciones (prototipo + mock Prism)
 - Evidencia E2: [`docs/evidence/e2-api-validation.md`](./docs/evidence/e2-api-validation.md) y [`docs/evidence/openapi-validation.png`](./docs/evidence/openapi-validation.png)
 
@@ -524,7 +541,7 @@ Evidencias de accesibilidad del prototipo E2: [`docs/evidence/e2-lighthouse.md`]
 - Modelo de la Entrega 2: [`docs/modelo-datos.md`](./docs/modelo-datos.md) y diagrama [`docs/modelo-datos.png`](./docs/modelo-datos.png).
 - Decisiones: [`docs/decisiones.md`](./docs/decisiones.md).
 
-PostgreSQL es el motor de persistencia. El modelo está documentado (entidades, claves, restricciones, índices y cardinalidades) y las migraciones de dominio están aplicadas en el backend Laravel de Entrega 3. Checkout, órdenes y pagos sandbox siguen pendientes.
+PostgreSQL es el motor de persistencia. El modelo está documentado (entidades, claves, restricciones, índices y cardinalidades) y las migraciones de dominio están aplicadas en el backend Laravel. Desde v0.5.0 el flujo incluye checkout, órdenes, Wompi Sandbox, webhook firmado y conciliación (sin pagos de producción).
 
 ---
 
