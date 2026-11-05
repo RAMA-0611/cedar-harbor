@@ -56,4 +56,21 @@ class Money
     {
         return bcadd($amount, '0', $scale);
     }
+
+    /**
+     * Convert a decimal money string (2 places) to integer cents for Wompi.
+     */
+    public static function toCents(string $amount): int
+    {
+        $normalized = self::format($amount, 2);
+        $parts = explode('.', $normalized, 2);
+        $int = $parts[0];
+        $frac = isset($parts[1]) ? str_pad($parts[1], 2, '0') : '00';
+        $cents = $int.$frac;
+        if (! preg_match('/^-?\d+$/', $cents)) {
+            throw new InvalidArgumentException('Invalid money amount for cents conversion.');
+        }
+
+        return (int) $cents;
+    }
 }

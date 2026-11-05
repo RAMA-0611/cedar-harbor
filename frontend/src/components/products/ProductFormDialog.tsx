@@ -4,7 +4,13 @@ import { FormDialog } from "@/components/admin/crud/FormDialog";
 import { helpClassName, inputClassName, labelClassName } from "@/components/admin/crud/fieldStyles";
 import { listCategories } from "@/lib/api/categories";
 import { fieldErrorsFromDetails, mutationErrorMessage } from "@/lib/api/errors";
-import { createProduct, getProduct, updateProduct } from "@/lib/api/products";
+import {
+  createProduct,
+  deleteProductImage,
+  getProduct,
+  updateProduct,
+  uploadProductImage,
+} from "@/lib/api/products";
 import { percentInputToTaxRate, taxRateToPercentInput } from "@/lib/format";
 import { ApiClientError, type AdminCategory, type CreateProductPayload } from "@/types/api";
 import { useEffect, useState, type FormEvent } from "react";
@@ -75,6 +81,10 @@ export function ProductFormDialog({
   const [loadingRecord, setLoadingRecord] = useState(mode === "edit");
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +132,10 @@ export function ProductFormDialog({
             stock: String(product.stock_quantity),
             is_active: product.is_active,
           });
+          setImageUrl(product.image_url);
+          setImageFile(null);
+          setImagePreview(null);
+          setImageError(null);
         }
       })
       .catch((caught: unknown) => {
@@ -255,14 +269,39 @@ export function ProductFormDialog({
     };
 
     setBusy(true);
+    setImageError(null);
     try {
+      let savedId = productId;
       if (mode === "create") {
-        await createProduct(payload);
-        onSaved("Producto creado correctamente.");
+        const created = await createProduct(payload);
+        savedId = created.id;
       } else if (mode === "edit" && productId) {
         await updateProduct(productId, payload);
-        onSaved("Producto actualizado correctamente.");
       }
+
+      if (savedId && imageFile) {
+        try {
+          const withImage = await uploadProductImage(savedId, imageFile);
+          setImageUrl(withImage.image_url);
+          setImageFile(null);
+          setImagePreview(null);
+        } catch (imageCaught) {
+          setImageError(
+            mutationErrorMessage(
+              imageCaught,
+              "El producto se guardó, pero la imagen no se pudo subir.",
+            ),
+          );
+          onSaved(
+            mode === "create"
+              ? "Producto creado; falló la carga de imagen."
+              : "Producto actualizado; falló la carga de imagen.",
+          );
+          return;
+        }
+      }
+
+      onSaved(mode === "create" ? "Producto creado correctamente." : "Producto actualizado correctamente.");
     } catch (caught) {
       if (caught instanceof ApiClientError && caught.error.status === 422) {
         const mapped = fieldErrorsFromDetails(caught.error.details);
@@ -586,6 +625,63 @@ export function ProductFormDialog({
         </label>
       </div>
       <p className="text-xs text-muted">{form.is_active ? "Estado: Activo" : "Estado: Inactivo"}</p>
+
+      <div className="space-y-2">
+        <label htmlFor="product-image" className={labelClassName}>
+          Imagen (jpg/png/webp, máx. 5 MB)
+        </label>
+        {(imagePreview || imageUrl) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imagePreview ?? imageUrl ?? undefined}
+            alt="Vista previa"
+            className="h-28 w-28 rounded-lg border border-border object-cover"
+          />
+        )}
+        <input
+          id="product-image"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={fieldsDisabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            setImageFile(file);
+            setImageError(null);
+            if (imagePreview) {
+              URL.revokeObjectURL(imagePreview);
+            }
+            setImagePreview(file ? URL.createObjectURL(file) : null);
+          }}
+          className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-foreground"
+        />
+        {mode === "edit" && productId && imageUrl ? (
+          <button
+            type="button"
+            className="text-xs text-danger underline"
+            disabled={fieldsDisabled}
+            onClick={() => {
+              setBusy(true);
+              void deleteProductImage(productId)
+                .then(() => {
+                  setImageUrl(null);
+                  setImageFile(null);
+                  setImagePreview(null);
+                })
+                .catch((caught: unknown) => {
+                  setImageError(mutationErrorMessage(caught, "No se pudo eliminar la imagen."));
+                })
+                .finally(() => setBusy(false));
+            }}
+          >
+            Eliminar imagen actual
+          </button>
+        ) : null}
+        {imageError ? (
+          <p role="alert" className="text-xs text-danger">
+            {imageError}
+          </p>
+        ) : null}
+      </div>
 
       {formError ? (
         <p

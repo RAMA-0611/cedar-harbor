@@ -62,38 +62,25 @@ El sistema debe mantener consistencia entre stock, orden y estado del pago, con 
 
 ## Project status
 
-### Estado actual — MVP integrado
+### Estado actual — V0.5 (rama de integración)
 
-El MVP académico requerido está **completo** (login, dashboard, CRUD admin, catálogo, carrito/checkout/orden hasta `PENDING_PAYMENT`, OpenAPI, PHPUnit, Playwright). El roadmap transaccional de la Ruta F **no** está cerrado: pasarela sandbox, webhook y conciliación siguen en issue **#9**.
+Storefront Next.js público **INTEGRATED** (API real). `web/` permanece **Historical E2 only**.
 
 | Componente | Estado |
 |---|---|
-| PostgreSQL | IMPLEMENTADO |
-| Migraciones de dominio | IMPLEMENTADAS |
-| Laravel API | IMPLEMENTADO |
-| Sanctum | IMPLEMENTADO |
-| ApiError | IMPLEMENTADO |
-| Login | IMPLEMENTADO |
-| Dashboard | IMPLEMENTADO |
-| Usuarios UI CRUD | IMPLEMENTADO |
-| Categorías UI CRUD | IMPLEMENTADO |
-| Productos UI CRUD | IMPLEMENTADO |
-| Pedidos system CRUD | IMPLEMENTADO |
-| Catálogo público | IMPLEMENTADO |
-| Carrito persistente | IMPLEMENTADO |
-| Reservas de stock | IMPLEMENTADAS |
-| Checkout | IMPLEMENTADO |
-| Orden | IMPLEMENTADA hasta `PENDING_PAYMENT` |
-| Idempotencia | IMPLEMENTADA |
-| Swagger/OpenAPI | IMPLEMENTADO |
-| PHPUnit | IMPLEMENTADO |
-| Playwright E2E | IMPLEMENTADO |
-| Backup | IMPLEMENTADO |
-| Pasarela sandbox | PENDIENTE / issue #9 |
-| Webhook | PENDIENTE / issue #9 |
-| Conciliación | PENDIENTE / issue #9 |
+| Storefront Next.js (`/`) | INTEGRATED |
+| Catálogo público | API real |
+| Carrito / checkout / order | API real |
+| Imágenes de producto | IMPLEMENTADO (`image_path` + storage público) |
+| ADMIN ↔ tienda sync | IMPLEMENTADO (misma DB) |
+| Payment intent Wompi | IMPLEMENTADO (código + tests) |
+| Webhook firmado | IMPLEMENTADO (código + tests) |
+| Conciliación | IMPLEMENTADO (código + tests) |
+| LIVE Wompi sandbox | BLOCKED_CREDENTIALS hasta llaves locales + túnel |
+| issue #9 | OPEN hasta LIVE_SANDBOX + webhook público confirmados |
+| PHPUnit / Playwright | ver evidencia del PR v0.5 |
 
-API en `main`: **38** rutas (`Auth` 3 + `Catalog` 2 + `Admin CRUD` 20 + `Admin Orders` 4 + `Cart` 4 + `Checkout` 1 + `Orders` 4).
+**No** se afirma PRODUCTION PAYMENTS.
 
 La interfaz `/pedidos` cubre listado, detalle, actualización de contacto/entrega, cancelación y eliminación controlada. **CREATE** sigue siendo el flujo transaccional `CUSTOMER` (`carrito → checkout → POST /api/orders`). No existe `POST /api/admin/orders`.
 

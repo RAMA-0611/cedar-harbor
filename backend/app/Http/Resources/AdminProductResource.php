@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Products\ProductImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,7 @@ class AdminProductResource extends JsonResource
             'tax_rate' => (string) $this->tax_rate,
             'stock_quantity' => (int) $this->stock_quantity,
             'is_active' => (bool) $this->is_active,
+            'image_url' => ProductImageService::publicUrl($this->image_path),
             'created_at' => optional($this->created_at)?->toISOString(),
             'updated_at' => optional($this->updated_at)?->toISOString(),
         ];

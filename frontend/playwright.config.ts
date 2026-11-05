@@ -49,15 +49,24 @@ for (const [key, value] of Object.entries(backendEnv)) {
   }
 }
 
-process.env.E2E_API_URL = "http://127.0.0.1:8001";
-process.env.NEXT_PUBLIC_API_BASE_URL = "http://127.0.0.1:8001";
+// Prefer 3011/8011 locally when 3001 is occupied by unrelated projects.
+const e2eFrontPort = process.env.E2E_FRONT_PORT ?? "3011";
+const e2eApiPort = process.env.E2E_API_PORT ?? "8011";
+
+process.env.E2E_API_URL = `http://127.0.0.1:${e2eApiPort}`;
+process.env.E2E_FRONT_PORT = e2eFrontPort;
+process.env.E2E_API_PORT = e2eApiPort;
+process.env.FRONTEND_URL = `http://127.0.0.1:${e2eFrontPort}`;
+process.env.NEXT_PUBLIC_API_BASE_URL = `http://127.0.0.1:${e2eApiPort}`;
 
 const laravelEnv: Record<string, string> = {
   ...backendEnv,
   APP_ENV: "e2e",
   DB_DATABASE: "rotor_e2e",
-  APP_URL: "http://127.0.0.1:8001",
-  FRONTEND_URL: "http://127.0.0.1:3001",
+  APP_URL: `http://127.0.0.1:${e2eApiPort}`,
+  FRONTEND_URL: `http://127.0.0.1:${e2eFrontPort}`,
+  SANCTUM_STATEFUL_DOMAINS: `127.0.0.1:${e2eFrontPort},localhost:${e2eFrontPort}`,
+  CORS_ALLOWED_ORIGINS: `http://127.0.0.1:${e2eFrontPort},http://localhost:${e2eFrontPort}`,
 };
 
 export default defineConfig({
@@ -69,27 +78,27 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3001",
+    baseURL: `http://127.0.0.1:${e2eFrontPort}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   webServer: [
     {
-      command: "php artisan serve --host=127.0.0.1 --port=8001",
+      command: `php artisan serve --host=127.0.0.1 --port=${e2eApiPort}`,
       cwd: path.join(repoRoot, "backend"),
-      url: "http://127.0.0.1:8001/up",
+      url: `http://127.0.0.1:${e2eApiPort}/up`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: laravelEnv,
     },
     {
-      command: "npx next dev --hostname 127.0.0.1 --port 3001",
+      command: `npx next dev --hostname 127.0.0.1 --port ${e2eFrontPort}`,
       cwd: __dirname,
-      url: "http://127.0.0.1:3001",
+      url: `http://127.0.0.1:${e2eFrontPort}`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8001",
+        NEXT_PUBLIC_API_BASE_URL: `http://127.0.0.1:${e2eApiPort}`,
       },
     },
   ],

@@ -24,6 +24,7 @@ class Product extends Model
         'tax_rate',
         'stock_quantity',
         'is_active',
+        'image_path',
     ];
 
     protected function casts(): array

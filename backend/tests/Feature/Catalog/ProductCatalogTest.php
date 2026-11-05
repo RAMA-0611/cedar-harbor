@@ -71,7 +71,10 @@ class ProductCatalogTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'sku', 'name', 'unit_price', 'currency', 'available_quantity', 'tax_rate']],
+                'data' => [[
+                    'id', 'sku', 'name', 'unit_price', 'currency', 'available_quantity', 'tax_rate',
+                    'description', 'brand', 'condition', 'unit', 'image_url', 'category',
+                ]],
                 'meta' => ['page', 'per_page', 'total'],
             ])
             ->assertJsonPath('meta.page', 1)

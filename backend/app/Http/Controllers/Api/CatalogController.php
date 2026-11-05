@@ -21,6 +21,7 @@ class CatalogController extends Controller
         $q = $this->parseSearchQuery($request);
 
         $query = $this->visibleCatalogQuery()
+            ->with('category')
             ->withSum([
                 'stockReservations as active_reserved_quantity' => function (Builder $builder) {
                     $builder->where('status', 'ACTIVE')
@@ -56,6 +57,7 @@ class CatalogController extends Controller
         }
 
         $product = $this->visibleCatalogQuery()
+            ->with('category')
             ->withSum([
                 'stockReservations as active_reserved_quantity' => function (Builder $builder) {
                     $builder->where('status', 'ACTIVE')

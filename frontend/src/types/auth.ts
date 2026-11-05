@@ -11,3 +11,13 @@ export type AuthenticatedUser = {
 export type AuthResponse = {
   user: AuthenticatedUser;
 };
+
+export type RegisterCustomerPayload = {
+  name: string;
+  email: string;
+  phone: string;
+  document_type: string;
+  document_number: string;
+  password: string;
+  password_confirmation: string;
+};

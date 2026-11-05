@@ -15,6 +15,8 @@ class Payment extends Model
         'order_id',
         'provider',
         'provider_reference',
+        'merchant_reference',
+        'provider_transaction_id',
         'status',
         'amount',
         'currency',
@@ -22,6 +24,7 @@ class Payment extends Model
         'expires_at',
         'paid_at',
         'failed_at',
+        'last_reconciled_at',
     ];
 
     protected function casts(): array
@@ -31,6 +34,7 @@ class Payment extends Model
             'expires_at' => 'datetime',
             'paid_at' => 'datetime',
             'failed_at' => 'datetime',
+            'last_reconciled_at' => 'datetime',
         ];
     }
 

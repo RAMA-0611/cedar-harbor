@@ -66,6 +66,19 @@ export function ProductViewDialog({ productId, onClose }: ProductViewDialogProps
         </p>
       ) : product ? (
         <dl className="space-y-3 text-sm">
+          {product.image_url ? (
+            <div>
+              <dt className="text-muted">Imagen</dt>
+              <dd className="mt-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={product.image_url}
+                  alt=""
+                  className="h-32 w-32 rounded-lg border border-border object-cover"
+                />
+              </dd>
+            </div>
+          ) : null}
           <ViewField label="SKU" value={product.sku} />
           <ViewField label="Nombre" value={product.name} />
           <ViewField

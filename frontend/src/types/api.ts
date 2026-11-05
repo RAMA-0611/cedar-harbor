@@ -156,6 +156,7 @@ export type AdminProduct = {
   tax_rate: string;
   stock_quantity: number;
   is_active: boolean;
+  image_url: string | null;
   created_at: string | null;
   updated_at: string | null;
 };

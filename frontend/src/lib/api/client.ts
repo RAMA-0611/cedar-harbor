@@ -20,8 +20,11 @@ export function onUnauthorized(handler: UnauthorizedHandler): () => void {
 export type ApiRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  headers?: Record<string, string>;
+  formData?: FormData;
   skipUnauthorizedHandler?: boolean;
   timeoutMs?: number;
+  cache?: RequestCache;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,6 +90,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
     const headers: Record<string, string> = {
       Accept: "application/json",
+      ...(options.headers ?? {}),
     };
 
     if (isMutation) {
@@ -96,16 +100,21 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       }
     }
 
-    if (options.body !== undefined) {
+    let body: BodyInit | undefined;
+    if (options.formData !== undefined) {
+      body = options.formData;
+    } else if (options.body !== undefined) {
       headers["Content-Type"] = "application/json";
+      body = JSON.stringify(options.body);
     }
 
     const response = await fetch(`${getApiBaseUrl()}${path}`, {
       method,
       credentials: "include",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body,
       signal: controller.signal,
+      cache: options.cache,
     });
 
     const payload = await parseBody(response);

@@ -1,4 +1,4 @@
-import { apiGet, apiMutation } from "@/lib/api/client";
+import { apiGet, apiMutation, apiRequest } from "@/lib/api/client";
 import type {
   AdminListResponse,
   AdminProduct,
@@ -42,4 +42,21 @@ export async function updateProduct(
 
 export async function deleteProduct(id: string): Promise<void> {
   await apiMutation<void>(`/api/admin/products/${id}`, "DELETE");
+}
+
+export async function uploadProductImage(id: string, file: File): Promise<AdminProduct> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const response = await apiRequest<AdminResourceResponse<AdminProduct>>(
+    `/api/admin/products/${id}/image`,
+    {
+      method: "POST",
+      formData,
+    },
+  );
+  return response.data;
+}
+
+export async function deleteProductImage(id: string): Promise<void> {
+  await apiMutation<void>(`/api/admin/products/${id}/image`, "DELETE");
 }
