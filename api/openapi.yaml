@@ -129,10 +129,14 @@ tags:
     description: Authenticated shopping cart and temporary stock reservations.
   - name: Checkout
     description: Pre-order validation of cart, stock, prices, and buyer data.
+  - name: Payments
+    description: |
+      Wompi sandbox payment-intent, webhook signature verification, and reconciliation.
+      Production money flows are out of scope.
   - name: Orders
     description: |
       Order creation through PENDING_PAYMENT, consultation, status, and
-      cancellation. Sandbox payment confirmation is out of scope for E3
+      cancellation. Sandbox payment confirmation continues via Payments tag
       (see issue #9).
 
 paths:
@@ -337,6 +341,23 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /api/webhooks/payments/wompi:
+    post:
+      tags: [Payments]
+      operationId: wompiWebhook
+      summary: Receive Wompi payment webhook
+      description: |
+        Server-to-server Wompi event ingestion. Validates dynamic signature.properties
+        and settles payments exactly once. No session auth.
+      security: []
+      responses:
+        "200":
+          description: Event accepted (including idempotent duplicates).
+        "401":
+          description: Invalid signature.
+        "503":
+          description: Events secret not configured.
 
   /api/admin/categories:
     get:
@@ -658,6 +679,62 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /api/admin/products/{productId}/image:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    post:
+      tags: [Admin Products]
+      operationId: adminUploadProductImage
+      summary: Upload or replace product image
+      description: |
+        Multipart upload (`image` field). Accepts jpeg/png/webp up to 5 MB.
+        Stores under `storage/app/public/products/` and returns `image_url`.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              additionalProperties: false
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Image stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProductEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Admin Products]
+      operationId: adminDeleteProductImage
+      summary: Delete product image
+      description: Clears `image_path` and deletes the stored file when present.
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Image removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/admin/customers:
     get:
@@ -1848,6 +1925,105 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/orders/{orderId}/payment-intent:
+    post:
+      tags: [Payments]
+      operationId: createPaymentIntent
+      summary: Create Wompi sandbox payment intent
+      description: |
+        Creates or reuses a PENDING WOMPI payment for a PENDING_PAYMENT order owned
+        by the authenticated CUSTOMER. Returns Web Checkout fields; never returns secrets.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "201":
+          description: Payment intent ready for Web Checkout.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - payment_id
+                  - provider
+                  - public_key
+                  - reference
+                  - amount_in_cents
+                  - currency
+                  - integrity_signature
+                  - checkout_url
+                  - redirect_url
+                properties:
+                  payment_id:
+                    type: string
+                    format: uuid
+                  provider:
+                    type: string
+                    enum: [WOMPI]
+                  public_key:
+                    type: string
+                  reference:
+                    type: string
+                  amount_in_cents:
+                    type: integer
+                    minimum: 0
+                  currency:
+                    $ref: "#/components/schemas/CurrencyCode"
+                  integrity_signature:
+                    type: string
+                  checkout_url:
+                    type: string
+                    format: uri
+                  redirect_url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          description: Sandbox credentials missing or invalid.
+
+  /api/orders/{orderId}/reconcile:
+    post:
+      tags: [Payments]
+      operationId: reconcileOrderPayment
+      summary: Reconcile order payment with Wompi
+      description: |
+        Backend looks up the Wompi transaction with the private key and applies
+        PaymentSettlementService (same path as webhook).
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                transaction_id:
+                  type: ["string", "null"]
+      responses:
+        "200":
+          description: Reconciliation result.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
 
 components:
   securitySchemes:
@@ -2374,6 +2550,9 @@ components:
           minimum: 0
         is_active:
           type: boolean
+        image_url:
+          type: ["string", "null"]
+          format: uri
         created_at:
           type: ["string", "null"]
           format: date-time
@@ -2636,6 +2815,31 @@ components:
           pattern: "^[0-9]+(\\.[0-9]{1,4})?$"
           examples:
             - "0.1900"
+        description:
+          type: ["string", "null"]
+        brand:
+          type: ["string", "null"]
+        condition:
+          type: ["string", "null"]
+        unit:
+          type: ["string", "null"]
+        image_url:
+          type: ["string", "null"]
+          format: uri
+        category:
+          type: ["object", "null"]
+          additionalProperties: false
+          required: [id, name, slug]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            slug:
+              type: string
+
+
 
     ProductListResponse:
       type: object

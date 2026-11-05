@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'wompi' => [
+        'env' => env('WOMPI_ENV', 'sandbox'),
+        'base_url' => env('WOMPI_BASE_URL', 'https://sandbox.wompi.co/v1'),
+        'checkout_url' => env('WOMPI_CHECKOUT_URL', 'https://checkout.wompi.co/p/'),
+        'public_key' => env('WOMPI_PUBLIC_KEY'),
+        'private_key' => env('WOMPI_PRIVATE_KEY'),
+        'integrity_secret' => env('WOMPI_INTEGRITY_SECRET'),
+        'events_secret' => env('WOMPI_EVENTS_SECRET'),
+    ],
+
 ];
+
