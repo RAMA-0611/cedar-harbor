@@ -4,7 +4,9 @@ import { customerEmail, customerPassword } from "./auth";
 
 export const CABLE_PRODUCT_ID = "7c1e4b2a-5d3f-4a8e-9b61-2f0d3c4e5a03";
 
-const ORIGIN = "http://127.0.0.1:3001";
+const ORIGIN =
+  process.env.FRONTEND_URL?.replace(/\/+$/, "") ??
+  `http://127.0.0.1:${process.env.E2E_FRONT_PORT ?? "3011"}`;
 
 function apiBase(): string {
   const value = process.env.E2E_API_URL;
