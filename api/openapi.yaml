@@ -2031,8 +2031,11 @@ paths:
                     type: string
                     format: uri
                   redirect_url:
-                    type: string
+                    type: ["string", "null"]
                     format: uri
+                    description: |
+                      Optional Web Checkout return URL. Null when WOMPI_REDIRECT_URL is
+                      empty (local demos). Must be HTTPS when set; localhost is rejected.
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":

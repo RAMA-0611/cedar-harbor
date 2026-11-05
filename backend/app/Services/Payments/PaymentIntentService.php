@@ -32,7 +32,7 @@ final class PaymentIntentService
      *   currency: string,
      *   integrity_signature: string,
      *   checkout_url: string,
-     *   redirect_url: string
+     *   redirect_url: ?string
      * }
      */
     public function createForOrder(User $user, string $orderId): array
@@ -64,12 +64,16 @@ final class PaymentIntentService
             $amount = Money::format((string) $locked->total, 2);
             $currency = (string) $locked->currency;
             $amountInCents = Money::toCents($amount);
-            $redirectUrl = rtrim((string) config('app.frontend_url', env('FRONTEND_URL', 'http://127.0.0.1:3000')), '/')
-                .'/pago/resultado';
+            $redirectUrl = $this->wompi->redirectUrl();
 
             if ($existing !== null) {
                 $payment = $existing;
                 $reference = (string) $payment->merchant_reference;
+
+                if ($payment->redirect_url !== $redirectUrl) {
+                    $payment->redirect_url = $redirectUrl;
+                    $payment->save();
+                }
             } else {
                 $reference = 'RTR-PAY-'.Str::upper(str_replace('-', '', (string) Str::uuid()));
                 $payment = Payment::query()->create([
@@ -101,7 +105,7 @@ final class PaymentIntentService
                 'currency' => $currency,
                 'integrity_signature' => $signature,
                 'checkout_url' => $this->wompi->checkoutUrl(),
-                'redirect_url' => (string) $payment->redirect_url,
+                'redirect_url' => $redirectUrl,
             ];
         });
     }

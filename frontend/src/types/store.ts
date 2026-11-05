@@ -74,5 +74,5 @@ export type PaymentIntent = {
   currency: string;
   integrity_signature: string;
   checkout_url: string;
-  redirect_url: string;
+  redirect_url: string | null;
 };

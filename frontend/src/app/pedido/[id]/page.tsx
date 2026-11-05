@@ -95,7 +95,9 @@ export default function OrderDetailPage() {
           <input type="hidden" name="amount-in-cents" value={String(intent.amount_in_cents)} />
           <input type="hidden" name="reference" value={intent.reference} />
           <input type="hidden" name="signature:integrity" value={intent.integrity_signature} />
-          <input type="hidden" name="redirect-url" value={intent.redirect_url} />
+          {intent.redirect_url ? (
+            <input type="hidden" name="redirect-url" value={intent.redirect_url} />
+          ) : null}
         </form>
       ) : null}
     </StorefrontShell>

@@ -43,6 +43,42 @@ final class WompiConfig
         return (string) config('services.wompi.events_secret', '');
     }
 
+    /**
+     * Optional post-checkout redirect for Web Checkout.
+     * Empty/null means omit redirect-url (required for local HTTP demos).
+     */
+    public function redirectUrl(): ?string
+    {
+        $raw = config('services.wompi.redirect_url');
+        if ($raw === null) {
+            return null;
+        }
+
+        $value = trim((string) $raw);
+        if ($value === '') {
+            return null;
+        }
+
+        $lower = strtolower($value);
+        if (
+            str_starts_with($lower, 'http://')
+            || str_contains($lower, 'localhost')
+            || str_contains($lower, '127.0.0.1')
+            || str_contains($lower, '[::1]')
+            || str_contains($lower, '::1')
+        ) {
+            throw new RuntimeException(
+                'WOMPI_REDIRECT_URL must be empty locally or an absolute HTTPS URL (no localhost/127.0.0.1).'
+            );
+        }
+
+        if (! str_starts_with($lower, 'https://')) {
+            throw new RuntimeException('WOMPI_REDIRECT_URL must be an absolute HTTPS URL when set.');
+        }
+
+        return $value;
+    }
+
     public function assertSandboxKeysConfigured(): void
     {
         $public = $this->publicKey();
