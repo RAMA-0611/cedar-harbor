@@ -7,11 +7,18 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 
+const safeNextPath = (raw: string | null): string => {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+    return "/carrito";
+  }
+  return raw;
+};
+
 function CustomerLoginForm() {
   const { login } = useAuth();
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") || "/carrito";
+  const next = safeNextPath(search.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +31,7 @@ function CustomerLoginForm() {
     try {
       const user = await login(email.trim(), password);
       if (user.role === "CUSTOMER") {
-        router.replace(next.startsWith("/") ? next : "/carrito");
+        router.replace(next);
         return;
       }
       if (user.role === "ADMIN") {
@@ -43,13 +50,15 @@ function CustomerLoginForm() {
     }
   };
 
+  const registerHref = `/cliente/registro?next=${encodeURIComponent(next)}`;
+
   return (
     <div className="store-panel" style={{ maxWidth: "28rem", margin: "0 auto" }}>
       <h1>Acceso cliente</h1>
-      <p className="store-meta">Use una cuenta CUSTOMER para carrito y checkout reales.</p>
+      <p className="store-meta">Inicia sesión para acceder a tu carrito y continuar tus compras.</p>
       {next.startsWith("/producto/") ? (
         <div className="store-alert store-alert-info">
-          Inicie sesión para agregar el producto al carrito y continuar la compra.
+          Inicia sesión para agregar el producto al carrito y continuar la compra.
         </div>
       ) : null}
       {error ? <div className="store-alert store-alert-error">{error}</div> : null}
@@ -81,6 +90,9 @@ function CustomerLoginForm() {
         </button>
       </form>
       <p className="store-meta" style={{ marginTop: "1rem" }}>
+        ¿No tienes cuenta? <Link href={registerHref}>Crear cuenta</Link>
+      </p>
+      <p className="store-meta">
         ¿Es administrador? <Link href="/login">Ir al panel ADMIN</Link>
       </p>
     </div>

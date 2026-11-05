@@ -1,9 +1,14 @@
 "use client";
 
-import { getCurrentUser, login as loginRequest, logout as logoutRequest } from "@/lib/api/auth";
+import {
+  getCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  registerCustomer as registerCustomerRequest,
+} from "@/lib/api/auth";
 import { onUnauthorized } from "@/lib/api/client";
 import { ApiClientError } from "@/types/api";
-import type { AuthenticatedUser } from "@/types/auth";
+import type { AuthenticatedUser, RegisterCustomerPayload } from "@/types/auth";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -21,6 +26,7 @@ type AuthContextValue = {
   authenticated: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<AuthenticatedUser>;
+  register: (payload: RegisterCustomerPayload) => Promise<AuthenticatedUser>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<AuthenticatedUser | null>;
 };
@@ -106,6 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextUser;
   }, []);
 
+  const register = useCallback(async (payload: RegisterCustomerPayload) => {
+    const nextUser = await registerCustomerRequest(payload);
+    setUser(nextUser);
+    setError(null);
+    return nextUser;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
@@ -135,10 +148,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authenticated: user !== null,
       error,
       login,
+      register,
       logout,
       refreshUser,
     }),
-    [user, loading, error, login, logout, refreshUser],
+    [user, loading, error, login, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

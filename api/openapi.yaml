@@ -140,6 +140,60 @@ tags:
       (see issue #9).
 
 paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerCustomer
+      summary: Self-register a CUSTOMER account
+      description: |
+        Creates a `User` with role `CUSTOMER` and a linked `Customer` profile
+        in one transaction, then starts a Sanctum session. Role cannot be
+        supplied by the client. SPA clients obtain a CSRF cookie via
+        `GET /sanctum/csrf-cookie` before this call.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              customer:
+                value:
+                  name: "Cliente Nuevo"
+                  email: "nuevo.cliente@example.test"
+                  phone: "3001234567"
+                  document_type: "CC"
+                  document_number: "1234567890"
+                  password: "password123"
+                  password_confirmation: "password123"
+      responses:
+        "201":
+          description: Customer account created and session established.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+              examples:
+                customer:
+                  value:
+                    user:
+                      id: 3
+                      name: "Cliente Nuevo"
+                      email: "nuevo.cliente@example.test"
+                      role: CUSTOMER
+                      customer_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Too many registration attempts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/auth/login:
     post:
       tags: [Auth]
@@ -2412,6 +2466,43 @@ components:
           type: string
           writeOnly: true
           description: Never echoed in responses.
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - phone
+        - document_type
+        - document_number
+        - password
+        - password_confirmation
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 30
+        document_type:
+          type: string
+          maxLength: 10
+        document_number:
+          type: string
+          maxLength: 30
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        password_confirmation:
+          type: string
+          writeOnly: true
+          minLength: 8
 
     AuthenticatedUser:
       type: object
