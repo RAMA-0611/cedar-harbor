@@ -135,6 +135,20 @@ export function ProductsModule() {
   const columns = useMemo<DataTableColumn<AdminProduct>[]>(
     () => [
       {
+        header: "Img",
+        render: (row) =>
+          row.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={row.image_url}
+              alt=""
+              className="h-10 w-10 rounded object-cover"
+            />
+          ) : (
+            <span className="text-xs text-muted">—</span>
+          ),
+      },
+      {
         header: "SKU",
         render: (row) => <span className="font-mono text-xs">{row.sku}</span>,
       },

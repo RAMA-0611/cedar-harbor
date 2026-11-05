@@ -85,7 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return onUnauthorized(() => {
       setUser(null);
-      router.replace("/login");
+      const path = globalThis.location?.pathname ?? "";
+      const adminSurface =
+        path.startsWith("/dashboard") ||
+        path.startsWith("/usuarios") ||
+        path.startsWith("/categorias") ||
+        path.startsWith("/productos") ||
+        path.startsWith("/pedidos") ||
+        path.startsWith("/documentacion") ||
+        path.startsWith("/pruebas") ||
+        path === "/login";
+      router.replace(adminSurface ? "/login" : "/cliente/login");
     });
   }, [router]);
 
@@ -104,7 +114,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       setError(null);
-      router.replace("/login");
+      const path = globalThis.location?.pathname ?? "";
+      const adminSurface =
+        path.startsWith("/dashboard") ||
+        path.startsWith("/usuarios") ||
+        path.startsWith("/categorias") ||
+        path.startsWith("/productos") ||
+        path.startsWith("/pedidos") ||
+        path.startsWith("/documentacion") ||
+        path.startsWith("/pruebas") ||
+        path === "/login";
+      router.replace(adminSurface ? "/login" : "/");
     }
   }, [router]);
 

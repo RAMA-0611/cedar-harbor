@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Proyecto Rotor — Administración",
-  description: "Panel administrativo de Proyecto Rotor (ByteBlade).",
+  title: "Proyecto Rotor",
+  description: "Tienda pública y panel administrativo de Proyecto Rotor (ByteBlade).",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Products\ProductImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,15 @@ class ProductSummaryResource extends JsonResource
         $reserved = (int) ($this->active_reserved_quantity ?? 0);
         $available = max(0, (int) $this->stock_quantity - $reserved);
 
+        $category = null;
+        if ($this->relationLoaded('category') && $this->category !== null) {
+            $category = [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'slug' => $this->category->slug,
+            ];
+        }
+
         return [
             'id' => $this->id,
             'sku' => $this->sku,
@@ -25,6 +35,12 @@ class ProductSummaryResource extends JsonResource
             'currency' => $this->currency,
             'available_quantity' => $available,
             'tax_rate' => (string) $this->tax_rate,
+            'description' => $this->description,
+            'brand' => $this->brand,
+            'condition' => $this->condition,
+            'unit' => $this->unit,
+            'image_url' => ProductImageService::publicUrl($this->image_path),
+            'category' => $category,
         ];
     }
 }
