@@ -9,6 +9,9 @@ final class WompiEventSignature
     /**
      * Validate Wompi event checksum using dynamic signature.properties.
      *
+     * Official event shape places `timestamp` at the payload ROOT (not under signature).
+     * Concatenation: property values (in order) + root timestamp + events secret → SHA256.
+     *
      * @param  array<string, mixed>  $payload
      */
     public static function verify(array $payload, string $checksumHeader, string $eventsSecret): bool
@@ -19,8 +22,11 @@ final class WompiEventSignature
         }
 
         $properties = $signature['properties'] ?? null;
-        $timestamp = $signature['timestamp'] ?? null;
-        if (! is_array($properties) || $timestamp === null || $timestamp === '') {
+        if (! is_array($properties) || $properties === []) {
+            return false;
+        }
+
+        if (! array_key_exists('timestamp', $payload) || $payload['timestamp'] === null || $payload['timestamp'] === '') {
             return false;
         }
 
@@ -41,20 +47,34 @@ final class WompiEventSignature
             $concat .= (string) $value;
         }
 
-        $concat .= (string) $timestamp;
+        $concat .= (string) $payload['timestamp'];
         $concat .= $eventsSecret;
         $expected = hash('sha256', $concat);
 
-        $provided = trim($checksumHeader);
-        if ($provided === '' && isset($signature['checksum']) && is_string($signature['checksum'])) {
-            $provided = $signature['checksum'];
-        }
-
+        $provided = self::resolveProvidedChecksum($payload, $checksumHeader);
         if ($provided === '') {
             return false;
         }
 
         return hash_equals(strtolower($expected), strtolower($provided));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public static function resolveProvidedChecksum(array $payload, string $checksumHeader): string
+    {
+        $provided = trim($checksumHeader);
+        if ($provided !== '') {
+            return $provided;
+        }
+
+        $signature = $payload['signature'] ?? null;
+        if (is_array($signature) && isset($signature['checksum']) && is_string($signature['checksum'])) {
+            return trim($signature['checksum']);
+        }
+
+        return '';
     }
 
     /**

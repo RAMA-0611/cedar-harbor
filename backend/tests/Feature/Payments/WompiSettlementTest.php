@@ -54,8 +54,22 @@ class WompiSettlementTest extends TestCase
     {
         $response = $this->postJson('/api/webhooks/payments/wompi', [
             'event' => 'transaction.updated',
-            'data' => ['transaction' => ['id' => 'tx1', 'reference' => 'x', 'amount_in_cents' => 100, 'currency' => 'COP', 'status' => 'APPROVED']],
-            'signature' => ['properties' => ['transaction.id'], 'timestamp' => 1],
+            'data' => [
+                'transaction' => [
+                    'id' => 'tx1',
+                    'reference' => 'x',
+                    'amount_in_cents' => 100,
+                    'currency' => 'COP',
+                    'status' => 'APPROVED',
+                ],
+            ],
+            'environment' => 'test',
+            'signature' => [
+                'properties' => ['transaction.id'],
+                'checksum' => 'deadbeef',
+            ],
+            'timestamp' => 1710000000,
+            'sent_at' => '2024-03-09T12:00:00.000Z',
         ], [
             'X-Event-Checksum' => 'deadbeef',
         ]);
@@ -136,10 +150,10 @@ class WompiSettlementTest extends TestCase
     public function test_webhook_duplicate_is_idempotent(): void
     {
         $ctx = $this->seedPendingOrder(stock: 4, qty: 1, total: '5000.00');
-        $timestamp = '1710000000';
+        $timestamp = 1710000000;
         $txId = 'tx-wh-1';
         $properties = ['transaction.id', 'transaction.status', 'transaction.amount_in_cents'];
-        $concat = $txId.'APPROVED'.'500000'.$timestamp.$this->eventsSecret;
+        $concat = $txId.'APPROVED'.'500000'.(string) $timestamp.$this->eventsSecret;
         $checksum = hash('sha256', $concat);
 
         $payload = [
@@ -151,14 +165,15 @@ class WompiSettlementTest extends TestCase
                     'amount_in_cents' => 500000,
                     'currency' => 'COP',
                     'status' => 'APPROVED',
-                    'environment' => 'test',
                 ],
             ],
+            'environment' => 'test',
             'signature' => [
                 'properties' => $properties,
-                'timestamp' => $timestamp,
                 'checksum' => $checksum,
             ],
+            'timestamp' => $timestamp,
+            'sent_at' => '2024-03-09T12:00:00.000Z',
         ];
 
         $this->assertTrue(WompiEventSignature::verify($payload, $checksum, $this->eventsSecret));

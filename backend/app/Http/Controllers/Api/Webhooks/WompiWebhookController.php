@@ -39,8 +39,9 @@ final class WompiWebhookController extends Controller
         $eventType = is_string($payload['event'] ?? null) ? (string) $payload['event'] : 'unknown';
         $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
         $transaction = is_array($data['transaction'] ?? null) ? $data['transaction'] : $data;
+        $resolvedChecksum = WompiEventSignature::resolveProvidedChecksum($payload, $checksum);
 
-        $externalId = $this->resolveExternalEventId($payload, $transaction, $checksum);
+        $externalId = $this->resolveExternalEventId($payload, $transaction, $resolvedChecksum);
 
         try {
             $existing = WebhookEvent::query()
@@ -67,13 +68,20 @@ final class WompiWebhookController extends Controller
                     'processing_status' => 'RECEIVED',
                 ]);
 
+                $environment = 'test';
+                if (isset($payload['environment']) && is_scalar($payload['environment'])) {
+                    $environment = (string) $payload['environment'];
+                } elseif (isset($transaction['environment'])) {
+                    $environment = (string) $transaction['environment'];
+                }
+
                 $settlement = $this->settlement->settleFromWompiTransaction([
                     'id' => isset($transaction['id']) ? (string) $transaction['id'] : null,
                     'reference' => (string) ($transaction['reference'] ?? ''),
                     'amount_in_cents' => (int) ($transaction['amount_in_cents'] ?? 0),
                     'currency' => (string) ($transaction['currency'] ?? ''),
                     'status' => (string) ($transaction['status'] ?? ''),
-                    'environment' => isset($transaction['environment']) ? (string) $transaction['environment'] : 'test',
+                    'environment' => $environment,
                 ]);
 
                 $event->processing_status = 'PROCESSED';
@@ -126,10 +134,9 @@ final class WompiWebhookController extends Controller
 
         $type = is_string($payload['event'] ?? null) ? (string) $payload['event'] : 'event';
         $txId = isset($transaction['id']) ? (string) $transaction['id'] : 'notx';
-        $ts = '';
-        if (isset($payload['signature']) && is_array($payload['signature']) && isset($payload['signature']['timestamp'])) {
-            $ts = (string) $payload['signature']['timestamp'];
-        }
+        $ts = array_key_exists('timestamp', $payload) && $payload['timestamp'] !== null
+            ? (string) $payload['timestamp']
+            : '';
 
         return hash('sha256', 'WOMPI|'.$type.'|'.$txId.'|'.$ts.'|'.$checksum);
     }
