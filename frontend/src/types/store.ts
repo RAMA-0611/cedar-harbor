@@ -76,3 +76,30 @@ export type PaymentIntent = {
   checkout_url: string;
   redirect_url: string | null;
 };
+
+export type SimulatedOutcome = "APPROVED" | "DECLINED" | "INSUFFICIENT_FUNDS" | "ERROR" | "PENDING";
+
+export type PaymentConfig = {
+  provider: string;
+  simulated: boolean;
+  test_cards: { number: string; outcome: SimulatedOutcome; label: string }[];
+};
+
+export type SimulatedPaymentResult = {
+  outcome: SimulatedOutcome;
+  message: string;
+  order_id: string;
+  order_status: string;
+  payment_status: string;
+  transaction_id: string | null;
+  card_last4: string | null;
+  settlement_reason: string | null;
+  can_retry: boolean;
+};
+
+export type SimulatedCardInput = {
+  card_holder: string;
+  card_number: string;
+  expiry: string;
+  cvc: string;
+};

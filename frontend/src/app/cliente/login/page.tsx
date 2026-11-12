@@ -6,6 +6,7 @@ import { ApiClientError } from "@/types/api";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 const safeNextPath = (raw: string | null): string => {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
@@ -76,9 +77,8 @@ function CustomerLoginForm() {
         </div>
         <div className="store-field">
           <label htmlFor="password">Contraseña</label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             required
             autoComplete="current-password"
             value={password}

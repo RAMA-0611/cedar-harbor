@@ -2,7 +2,7 @@
 
 import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { listCatalogProducts } from "@/lib/api/catalog";
-import { formatCop, resolveProductImage } from "@/lib/productImage";
+import { formatCop, handleImageError, resolveProductImage } from "@/lib/productImage";
 import type { CatalogProduct } from "@/types/catalog";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,8 +22,15 @@ export default function PublicCatalogPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await listCatalogProducts({ page: 1, perPage: 100 });
-      setProducts(response.data);
+      const perPage = 100;
+      const first = await listCatalogProducts({ page: 1, perPage });
+      const all = [...first.data];
+      const pages = Math.min(Math.ceil((first.meta?.total ?? all.length) / perPage), 20);
+      for (let page = 2; page <= pages; page += 1) {
+        const next = await listCatalogProducts({ page, perPage });
+        all.push(...next.data);
+      }
+      setProducts(all);
     } catch {
       setError("No se pudo cargar el catálogo. Verifique que la API esté en ejecución.");
       setProducts([]);
@@ -156,7 +163,8 @@ export default function PublicCatalogPage() {
       <div className="store-grid">
         {filtered.map((product) => (
           <article key={product.id} className="store-card">
-            <img src={resolveProductImage(product)} alt="" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={resolveProductImage(product)} alt={product.name} onError={handleImageError} />
             <div className="store-card-body">
               <p className="store-meta">{product.category?.name ?? "Sin categoría"}</p>
               <h2>{product.name}</h2>

@@ -119,6 +119,9 @@ export type CreateUserPayload = {
   email: string;
   password: string;
   role: UserRole;
+  phone?: string;
+  document_type?: string;
+  document_number?: string;
 };
 
 export type UpdateUserPayload = {

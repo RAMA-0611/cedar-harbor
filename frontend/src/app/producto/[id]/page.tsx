@@ -1,10 +1,12 @@
 "use client";
 
+import { QuantityInput } from "@/components/store/QuantityInput";
 import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { useAuth } from "@/hooks/useAuth";
 import { addCartItem } from "@/lib/api/cart";
 import { getCatalogProduct } from "@/lib/api/catalog";
-import { formatCop, resolveProductImage } from "@/lib/productImage";
+import { storeErrorMessage } from "@/lib/api/errors";
+import { formatCop, handleImageError, resolveProductImage } from "@/lib/productImage";
 import type { CatalogProduct } from "@/types/catalog";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -53,12 +55,17 @@ export default function ProductDetailPage() {
       router.push(`/cliente/login?next=/producto/${params.id}`);
       return;
     }
+    if (!product || product.available_quantity < 1) {
+      setError("Este producto no tiene unidades disponibles.");
+      return;
+    }
+    const qty = Math.min(Math.max(1, quantity), product.available_quantity);
     setBusy(true);
     try {
-      await addCartItem(params.id, quantity);
+      await addCartItem(params.id, qty);
       setMessage("Producto agregado al carrito.");
-    } catch {
-      setError("No se pudo agregar al carrito. Verifique stock disponible.");
+    } catch (caught) {
+      setError(storeErrorMessage(caught, "No se pudo agregar al carrito."));
     } finally {
       setBusy(false);
     }
@@ -69,9 +76,11 @@ export default function ProductDetailPage() {
       {!product && error ? <div className="store-alert store-alert-error">{error}</div> : null}
       {product ? (
         <div className="store-detail">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={resolveProductImage(product)}
-            alt=""
+            alt={product.name}
+            onError={handleImageError}
             style={{ width: "100%", borderRadius: "0.75rem", border: "1px solid #d5dbe1" }}
           />
           <div className="store-panel">
@@ -91,13 +100,12 @@ export default function ProductDetailPage() {
 
             <div className="store-field" style={{ maxWidth: "8rem" }}>
               <label htmlFor="qty">Cantidad</label>
-              <input
+              <QuantityInput
                 id="qty"
-                type="number"
-                min={1}
-                max={Math.max(1, product.available_quantity)}
+                label="Cantidad"
                 value={quantity}
-                onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
+                max={Math.max(1, product.available_quantity)}
+                onCommit={setQuantity}
               />
             </div>
 

@@ -14,6 +14,7 @@ import { listCategories } from "@/lib/api/categories";
 import { mutationErrorMessage, productDeleteErrorMessage } from "@/lib/api/errors";
 import { deleteProduct, listProducts } from "@/lib/api/products";
 import { formatCurrencyCOP } from "@/lib/format";
+import { handleImageError } from "@/lib/productImage";
 import type { AdminCategory, AdminProduct } from "@/types/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -142,6 +143,7 @@ export function ProductsModule() {
             <img
               src={row.image_url}
               alt=""
+              onError={handleImageError}
               className="h-10 w-10 rounded object-cover"
             />
           ) : (

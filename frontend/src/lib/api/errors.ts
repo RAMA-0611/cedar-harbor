@@ -127,3 +127,51 @@ export function categoryDeleteErrorMessage(caught: unknown): string {
   }
   return mutationErrorMessage(caught, "No se pudo eliminar la categoría.");
 }
+
+/**
+ * Mensaje para las pantallas de la tienda (carrito, checkout, pedido, pago).
+ * Usa el código real de la API en lugar de culpar siempre al stock.
+ */
+export function storeErrorMessage(caught: unknown, fallback: string): string {
+  if (!(caught instanceof ApiClientError)) {
+    return "No se pudo conectar con el servidor. Verifique que la API esté en ejecución.";
+  }
+
+  const { status, code, details } = caught.error;
+
+  switch (code) {
+    case "CUSTOMER_PROFILE_REQUIRED":
+      return "Su cuenta no tiene perfil de cliente. Regístrese como cliente en /cliente/registro o pida al administrador que lo active.";
+    case "INSUFFICIENT_STOCK": {
+      const available = details.available_quantity;
+      return typeof available === "number" || typeof available === "string"
+        ? `Stock insuficiente. Disponible: ${available}.`
+        : "Stock insuficiente para la cantidad solicitada.";
+    }
+    case "PAYMENT_NOT_CONFIGURED":
+      return "El pago en línea no está configurado (faltan las llaves sandbox de Wompi en backend/.env).";
+    case "UNAUTHENTICATED":
+      return "Su sesión expiró. Inicie sesión de nuevo.";
+    case "FORBIDDEN":
+      return "No tiene permisos para realizar esta acción.";
+    case "RESOURCE_NOT_FOUND":
+      return "El recurso solicitado no existe o no es suyo.";
+    default:
+      break;
+  }
+
+  if (status === 401) {
+    return "Su sesión expiró. Inicie sesión de nuevo.";
+  }
+  if (status === 0) {
+    return "No se pudo conectar con el servidor. Verifique que la API esté en ejecución.";
+  }
+  if (status >= 500) {
+    return "Error interno del servidor. Revise backend/storage/logs/laravel.log.";
+  }
+  if (status === 422) {
+    const first = Object.values(fieldErrorsFromDetails(details))[0];
+    return first ?? caught.error.message ?? fallback;
+  }
+  return caught.error.message || fallback;
+}

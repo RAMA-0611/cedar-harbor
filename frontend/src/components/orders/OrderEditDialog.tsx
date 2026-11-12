@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  DOCUMENT_TYPES,
+  sanitizeDocumentNumber,
+  sanitizePhone,
+  validateDocumentNumber,
+  validatePhone,
+} from "@/lib/validation";
 import { FormDialog } from "@/components/admin/crud/FormDialog";
 import { helpClassName, inputClassName, labelClassName } from "@/components/admin/crud/fieldStyles";
 import { fieldErrorsFromDetails, mutationErrorMessage } from "@/lib/api/errors";
@@ -86,23 +93,15 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
       errors.customer_email = "Ingrese un correo electrónico válido.";
     }
 
-    if (!phone) {
-      errors.customer_phone = "El teléfono es obligatorio.";
-    } else if (phone.length > 30) {
-      errors.customer_phone = "El teléfono no puede superar 30 caracteres.";
+    const phoneError = validatePhone(phone);
+    if (phoneError) errors.customer_phone = phoneError;
+
+    if (!DOCUMENT_TYPES.some((type) => type.value === documentType)) {
+      errors.customer_document_type = "Seleccione un tipo de documento de la lista.";
     }
 
-    if (!documentType) {
-      errors.customer_document_type = "El tipo de documento es obligatorio.";
-    } else if (documentType.length > 10) {
-      errors.customer_document_type = "El tipo de documento no puede superar 10 caracteres.";
-    }
-
-    if (!documentNumber) {
-      errors.customer_document_number = "El número de documento es obligatorio.";
-    } else if (documentNumber.length > 30) {
-      errors.customer_document_number = "El número de documento no puede superar 30 caracteres.";
-    }
+    const documentError = validateDocumentNumber(documentType, documentNumber);
+    if (documentError) errors.customer_document_number = documentError;
 
     if (current.delivery_mode === "COORDINATED_SHIPPING") {
       if (address.length < 5) {
@@ -233,16 +232,16 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
         <input
           id="order-customer-phone"
           name="customer_phone"
-          type="text"
+          type="tel"
+          inputMode="numeric"
           required
-          maxLength={30}
           value={form?.customer_phone ?? ""}
           disabled={fieldsDisabled}
           aria-invalid={Boolean(fieldErrors.customer_phone)}
           aria-describedby={fieldErrors.customer_phone ? "order-customer-phone-error" : undefined}
           onChange={(event) =>
             setForm((current) =>
-              current ? { ...current, customer_phone: event.target.value } : current,
+              current ? { ...current, customer_phone: sanitizePhone(event.target.value) } : current,
             )
           }
           className={inputClassName}
@@ -259,12 +258,10 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
           <label htmlFor="order-document-type" className={labelClassName}>
             Tipo documento
           </label>
-          <input
+          <select
             id="order-document-type"
             name="customer_document_type"
-            type="text"
             required
-            maxLength={10}
             value={form?.customer_document_type ?? ""}
             disabled={fieldsDisabled}
             aria-invalid={Boolean(fieldErrors.customer_document_type)}
@@ -273,11 +270,26 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
             }
             onChange={(event) =>
               setForm((current) =>
-                current ? { ...current, customer_document_type: event.target.value } : current,
+                current
+                  ? {
+                      ...current,
+                      customer_document_type: event.target.value,
+                      customer_document_number: sanitizeDocumentNumber(
+                        current.customer_document_number,
+                        event.target.value,
+                      ),
+                    }
+                  : current,
               )
             }
             className={inputClassName}
-          />
+          >
+            {DOCUMENT_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
           {fieldErrors.customer_document_type ? (
             <p id="order-document-type-error" className="mt-1 text-xs text-danger">
               {fieldErrors.customer_document_type}
@@ -293,7 +305,6 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
             name="customer_document_number"
             type="text"
             required
-            maxLength={30}
             value={form?.customer_document_number ?? ""}
             disabled={fieldsDisabled}
             aria-invalid={Boolean(fieldErrors.customer_document_number)}
@@ -302,7 +313,15 @@ export function OrderEditDialog({ orderId, onClose, onSaved }: OrderEditDialogPr
             }
             onChange={(event) =>
               setForm((current) =>
-                current ? { ...current, customer_document_number: event.target.value } : current,
+                current
+                  ? {
+                      ...current,
+                      customer_document_number: sanitizeDocumentNumber(
+                        event.target.value,
+                        current.customer_document_type,
+                      ),
+                    }
+                  : current,
               )
             }
             className={inputClassName}

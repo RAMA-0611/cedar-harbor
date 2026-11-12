@@ -12,9 +12,10 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
     <div className="store-root">
       <header className="store-header">
         <div className="store-header-inner">
-          <Link href="/" className="store-brand" aria-label="Proyecto Rotor tienda">
-            <span className="store-brand-mark">ByteBlade</span>
-            <strong>Proyecto Rotor</strong>
+          <Link href="/" className="store-brand">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-byteblade.png" alt="ByteBlade" width={150} height={41} className="store-brand-logo" />
+            <span className="store-brand-name">Proyecto Rotor</span>
           </Link>
           <nav className="store-nav" aria-label="Navegación tienda">
             <Link href="/">Catálogo</Link>
@@ -37,6 +38,8 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
       </header>
       <main className="store-main">{children}</main>
       <footer className="store-footer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-byteblade-blanco.png" alt="" width={110} height={30} className="store-footer-logo" />
         <p>Proyecto Rotor · Demo académica · Sandbox · Sin dinero real</p>
       </footer>
     </div>

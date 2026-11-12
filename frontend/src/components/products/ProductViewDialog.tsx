@@ -4,6 +4,7 @@ import { Modal } from "@/components/admin/crud/Modal";
 import { StatusBadge } from "@/components/admin/crud/StatusBadge";
 import { listCategories } from "@/lib/api/categories";
 import { mutationErrorMessage } from "@/lib/api/errors";
+import { handleImageError } from "@/lib/productImage";
 import { getProduct } from "@/lib/api/products";
 import { formatCurrencyCOP, formatDateTime, formatTaxPercent } from "@/lib/format";
 import type { AdminCategory, AdminProduct } from "@/types/api";
@@ -74,6 +75,7 @@ export function ProductViewDialog({ productId, onClose }: ProductViewDialogProps
                 <img
                   src={product.image_url}
                   alt=""
+                  onError={handleImageError}
                   className="h-32 w-32 rounded-lg border border-border object-cover"
                 />
               </dd>

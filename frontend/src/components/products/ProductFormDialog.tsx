@@ -12,6 +12,7 @@ import {
   uploadProductImage,
 } from "@/lib/api/products";
 import { percentInputToTaxRate, taxRateToPercentInput } from "@/lib/format";
+import { handleImageError } from "@/lib/productImage";
 import { ApiClientError, type AdminCategory, type CreateProductPayload } from "@/types/api";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -188,22 +189,39 @@ export function ProductFormDialog({
     if (!sku) {
       errors.sku = "El SKU es obligatorio.";
     } else if (sku.length > 64) {
-      errors.sku = "El SKU no puede superar 64 caracteres.";
+      errors.sku = "El SKU no puede superar 64 caracteres.";    } else if (sku.length < 3) {
+      errors.sku = "El SKU debe tener al menos 3 caracteres.";
+    } else if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(sku)) {
+      errors.sku = "El SKU solo admite letras, números, punto, guion y guion bajo, sin espacios.";
     }
 
     if (!name) {
       errors.name = "El nombre es obligatorio.";
     } else if (name.length > 255) {
-      errors.name = "El nombre no puede superar 255 caracteres.";
+      errors.name = "El nombre no puede superar 255 caracteres.";    } else if (name.length < 3) {
+      errors.name = "El nombre debe tener al menos 3 caracteres.";
+    } else if (/[<>]/.test(name)) {
+      errors.name = "El nombre no puede contener los símbolos < ni >.";
     }
 
-    if (brand.length > 120) {
+    for (const [key, value, label] of [
+      ["brand", brand, "La marca"],
+      ["condition", condition, "La condición"],
+      ["unit", unit, "La unidad"],
+      ["description", form.description ?? "", "La descripción"],
+    ] as const) {
+      if (/[<>]/.test(value)) {
+        errors[key] = `${label} no puede contener los símbolos < ni >.`;
+      }
+    }
+
+    if (!errors.brand && brand.length > 120) {
       errors.brand = "La marca no puede superar 120 caracteres.";
     }
-    if (condition.length > 40) {
+    if (!errors.condition && condition.length > 40) {
       errors.condition = "La condición no puede superar 40 caracteres.";
     }
-    if (unit.length > 60) {
+    if (!errors.unit && unit.length > 60) {
       errors.unit = "La unidad no puede superar 60 caracteres.";
     }
 
@@ -213,6 +231,8 @@ export function ProductFormDialog({
       const amount = Number(price);
       if (!Number.isFinite(amount) || amount < 0) {
         errors.price = "El precio debe ser un número mayor o igual a 0.";
+      } else if (!/^\d+(\.\d{1,2})?$/.test(price)) {
+        errors.price = "El precio admite máximo 2 decimales.";
       }
     }
 
@@ -228,7 +248,8 @@ export function ProductFormDialog({
     if (!form.stock.trim()) {
       errors.stock_quantity = "El stock es obligatorio.";
     } else if (parseStock(form.stock) === null) {
-      errors.stock_quantity = "El stock debe ser un entero mayor o igual a 0.";
+      errors.stock_quantity = "El stock debe ser un entero mayor o igual a 0.";    } else if ((parseStock(form.stock) ?? 0) > 1_000_000) {
+      errors.stock_quantity = "El stock no puede superar 1.000.000 unidades.";
     }
 
     return errors;
@@ -443,7 +464,14 @@ export function ProductFormDialog({
             setForm((current) => ({ ...current, description: event.target.value }))
           }
           className={`${inputClassName} py-2`}
+          maxLength={5000}
+          aria-invalid={fieldErrors.description ? true : undefined}
         />
+        {fieldErrors.description ? (
+          <p role="alert" className="mt-1 text-sm text-red-300">
+            {fieldErrors.description}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -635,6 +663,7 @@ export function ProductFormDialog({
           <img
             src={imagePreview ?? imageUrl ?? undefined}
             alt="Vista previa"
+            onError={handleImageError}
             className="h-28 w-28 rounded-lg border border-border object-cover"
           />
         )}

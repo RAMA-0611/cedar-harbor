@@ -4,7 +4,10 @@ import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { useAuth } from "@/hooks/useAuth";
 import { getCart } from "@/lib/api/cart";
 import { createOrder, validateCheckout } from "@/lib/api/checkout";
+import { storeErrorMessage } from "@/lib/api/errors";
 import { formatCop } from "@/lib/productImage";
+import { ContactFields } from "@/components/store/ContactFields";
+import { validateContact, validateEmail, type FieldErrors } from "@/lib/validation";
 import type { CartView, CheckoutPayload } from "@/types/store";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
@@ -22,6 +25,7 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<CartView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -45,12 +49,23 @@ export default function CheckoutPage() {
         setCart(next);
         setForm((prev) => ({ ...prev, email: user.email, name: user.name }));
       })
-      .catch(() => setError("No se pudo cargar el carrito para checkout."));
+      .catch((caught) => setError(storeErrorMessage(caught, "No se pudo cargar el carrito para checkout.")));
   }, [authLoading, router, user]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!user || user.role !== "CUSTOMER") {
+      return;
+    }
+    const errors: FieldErrors = validateContact(form);
+    const emailError = validateEmail(form.email);
+    if (emailError) errors.email = emailError;
+    if (form.mode === "COORDINATED_SHIPPING" && form.address.trim().length < 5) {
+      errors.address = "Escribe la dirección de entrega (mínimo 5 caracteres).";
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError("Revisa los campos marcados antes de continuar.");
       return;
     }
     setBusy(true);
@@ -77,8 +92,8 @@ export default function CheckoutPage() {
         // ignore storage failures
       }
       router.replace(`/pedido/${order.id}`);
-    } catch {
-      setError("Checkout inválido o no se pudo crear el pedido.");
+    } catch (caught) {
+      setError(storeErrorMessage(caught, "Checkout inválido o no se pudo crear el pedido."));
     } finally {
       setBusy(false);
     }
@@ -92,54 +107,24 @@ export default function CheckoutPage() {
       </section>
       {error ? <div className="store-alert store-alert-error">{error}</div> : null}
       <div className="store-detail">
-        <form className="store-panel" onSubmit={(event) => void handleSubmit(event)}>
-          <div className="store-field">
-            <label htmlFor="name">Nombre</label>
-            <input
-              id="name"
-              required
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-            />
-          </div>
+        <form className="store-panel" noValidate onSubmit={(event) => void handleSubmit(event)}>
+          <ContactFields
+            values={form}
+            errors={fieldErrors}
+            onChange={(next) => setForm((prev) => ({ ...prev, ...next }))}
+          />
           <div className="store-field">
             <label htmlFor="email">Correo</label>
             <input
               id="email"
               type="email"
               required
+              maxLength={254}
               value={form.email}
+              aria-invalid={fieldErrors.email ? true : undefined}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
             />
-          </div>
-          <div className="store-field">
-            <label htmlFor="phone">Teléfono</label>
-            <input
-              id="phone"
-              required
-              value={form.phone}
-              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-            />
-          </div>
-          <div className="store-field">
-            <label htmlFor="document_type">Tipo documento</label>
-            <input
-              id="document_type"
-              required
-              value={form.document_type}
-              onChange={(event) => setForm((prev) => ({ ...prev, document_type: event.target.value }))}
-            />
-          </div>
-          <div className="store-field">
-            <label htmlFor="document_number">Número documento</label>
-            <input
-              id="document_number"
-              required
-              value={form.document_number}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, document_number: event.target.value }))
-              }
-            />
+            {fieldErrors.email ? <p className="store-field-error" role="alert">{fieldErrors.email}</p> : null}
           </div>
           <div className="store-field">
             <label htmlFor="mode">Entrega</label>
@@ -165,8 +150,11 @@ export default function CheckoutPage() {
                 required
                 rows={3}
                 value={form.address}
+                maxLength={255}
+                aria-invalid={fieldErrors.address ? true : undefined}
                 onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
               />
+              {fieldErrors.address ? <p className="store-field-error" role="alert">{fieldErrors.address}</p> : null}
             </div>
           ) : null}
           <button type="submit" className="store-btn" disabled={busy || !cart || cart.items.length === 0}>

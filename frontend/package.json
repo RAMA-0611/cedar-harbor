@@ -13,6 +13,7 @@
     "test:e2e": "npm run e2e:reset && playwright test"
   },
   "dependencies": {
+    "geist": "^1.5.1",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"
