@@ -89,6 +89,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
+      # LayoutProps<> y tipos de rutas App Router se generan aquí (sin build completo).
+      - run: npx next typegen
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
