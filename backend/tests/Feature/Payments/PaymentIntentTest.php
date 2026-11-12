@@ -85,6 +85,21 @@ class PaymentIntentTest extends TestCase
         $this->assertSame($reference, $ctx['payment']->fresh()->merchant_reference);
     }
 
+    public function test_missing_wompi_credentials_return_clear_503(): void
+    {
+        config([
+            'services.wompi.public_key' => '',
+            'services.wompi.private_key' => '',
+            'services.wompi.integrity_secret' => '',
+        ]);
+        $ctx = $this->seedPendingOrderWithoutPayment();
+
+        $this->actingAs($ctx['user'])
+            ->postJson('/api/orders/'.$ctx['order']->id.'/payment-intent')
+            ->assertStatus(503)
+            ->assertJsonPath('code', 'PAYMENT_NOT_CONFIGURED');
+    }
+
     public function test_https_redirect_url_is_returned(): void
     {
         config(['services.wompi.redirect_url' => 'https://example.test/pago/resultado']);
@@ -224,7 +239,7 @@ class PaymentIntentTest extends TestCase
             'customer_email' => $user->email,
             'customer_phone' => '3000000000',
             'customer_document_type' => 'CC',
-            'customer_document_number' => '123',
+            'customer_document_number' => '1234567',
             'delivery_mode' => 'PICKUP',
             'delivery_address' => null,
             'subtotal' => '10000.00',

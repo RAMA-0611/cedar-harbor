@@ -17,7 +17,7 @@ class CustomerCrudTest extends AdminTestCase
         $create = $this->postJson('/api/admin/customers', [
             'name' => 'Cliente Sintetico A',
             'email' => 'cliente.a@example.test',
-            'phone' => '+57-300-111-0001',
+            'phone' => '3001110001',
             'document_type' => 'CC',
             'document_number' => '2000000001',
         ]);
@@ -37,10 +37,10 @@ class CustomerCrudTest extends AdminTestCase
             ->assertJsonPath('data.id', $id);
 
         $this->patchJson("/api/admin/customers/{$id}", [
-            'phone' => '+57-300-111-9999',
+            'phone' => '3001119999',
         ])
             ->assertOk()
-            ->assertJsonPath('data.phone', '+57-300-111-9999');
+            ->assertJsonPath('data.phone', '3001119999');
 
         $this->deleteJson("/api/admin/customers/{$id}")->assertNoContent();
         $this->assertDatabaseMissing('customers', ['id' => $id]);
@@ -55,18 +55,18 @@ class CustomerCrudTest extends AdminTestCase
             'user_id' => $user->id,
             'name' => 'Primero',
             'email' => 'primero@example.test',
-            'phone' => '300',
+            'phone' => '3000000300',
             'document_type' => 'CC',
-            'document_number' => '1',
+            'document_number' => '1000001',
         ]);
 
         $response = $this->postJson('/api/admin/customers', [
             'user_id' => $user->id,
             'name' => 'Segundo',
             'email' => 'segundo@example.test',
-            'phone' => '301',
+            'phone' => '3010000301',
             'document_type' => 'CC',
-            'document_number' => '2',
+            'document_number' => '1000002',
         ]);
 
         $this->assertApiError($response, 422, 'VALIDATION_ERROR');

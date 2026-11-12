@@ -247,7 +247,7 @@ class WompiSettlementTest extends TestCase
             'customer_email' => $user->email,
             'customer_phone' => '3000000000',
             'customer_document_type' => 'CC',
-            'customer_document_number' => '123',
+            'customer_document_number' => '1234567',
             'delivery_mode' => 'PICKUP',
             'delivery_address' => null,
             'subtotal' => $total,

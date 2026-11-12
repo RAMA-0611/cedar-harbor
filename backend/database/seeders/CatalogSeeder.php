@@ -73,7 +73,7 @@ class CatalogSeeder extends Seeder
         Customer::query()->create([
             'name' => 'Cliente Sintético Demo',
             'email' => 'cliente.sintetico@example.test',
-            'phone' => '+57-300-000-0000',
+            'phone' => '3000000000',
             'document_type' => 'CC',
             'document_number' => '1000000000',
         ]);

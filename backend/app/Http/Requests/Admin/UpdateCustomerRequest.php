@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\ColombianMobilePhone;
+use App\Rules\DocumentNumberForType;
+use App\Rules\PersonName;
+
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,11 +31,11 @@ class UpdateCustomerRequest extends FormRequest
                 'exists:users,id',
                 Rule::unique('customers', 'user_id')->ignore($customerId),
             ],
-            'name' => ['sometimes', 'required', 'string', 'max:160'],
-            'email' => ['sometimes', 'required', 'email', 'max:254'],
-            'phone' => ['sometimes', 'required', 'string', 'max:30'],
-            'document_type' => ['sometimes', 'required', 'string', 'max:10'],
-            'document_number' => ['sometimes', 'required', 'string', 'max:30'],
+            'name' => ['sometimes', 'required', 'string', new PersonName],
+            'email' => ['sometimes', 'required', 'email:rfc', 'max:254'],
+            'phone' => ['sometimes', 'required', 'string', new ColombianMobilePhone],
+            'document_type' => ['sometimes', 'required', 'string', Rule::in(array_keys(DocumentNumberForType::DOCUMENT_TYPES))],
+            'document_number' => ['sometimes', 'required', 'string', new DocumentNumberForType('document_type')],
         ];
     }
 }

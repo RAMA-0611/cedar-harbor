@@ -44,6 +44,14 @@ class ApiException extends Exception
         return new self(502, 'PAYMENT_PROVIDER_ERROR', $message, $details);
     }
 
+    /**
+     * @param  array<string, mixed>  $details
+     */
+    public static function serviceUnavailable(string $code, string $message, array $details = []): self
+    {
+        return new self(503, $code, $message, $details);
+    }
+
     public function render(): JsonResponse
     {
         return ApiErrorResponse::make(

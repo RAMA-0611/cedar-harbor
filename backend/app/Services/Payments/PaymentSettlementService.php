@@ -53,7 +53,7 @@ final class PaymentSettlementService
         ) {
             /** @var Payment|null $payment */
             $payment = Payment::query()
-                ->where('provider', 'WOMPI')
+                ->whereIn('provider', ['WOMPI', 'SIMULATED'])
                 ->where('merchant_reference', $reference)
                 ->lockForUpdate()
                 ->first();

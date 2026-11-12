@@ -28,6 +28,7 @@
         <env name="DB_DATABASE" value="rotor_testing" force="true"/>
         <!-- SQLite in-memory is not used: domain migrations rely on PostgreSQL. -->
         <env name="MAIL_MAILER" value="array"/>
+        <env name="PAYMENT_PROVIDER" value="wompi" force="true"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

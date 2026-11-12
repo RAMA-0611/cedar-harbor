@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\ColombianMobilePhone;
+use App\Rules\DocumentNumberForType;
+
 use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -34,9 +37,9 @@ class AdminUpdateOrderRequest extends FormRequest
         return [
             'customer_name' => ['sometimes', 'required', 'string', 'max:160'],
             'customer_email' => ['sometimes', 'required', 'email', 'max:254'],
-            'customer_phone' => ['sometimes', 'required', 'string', 'max:30'],
-            'customer_document_type' => ['sometimes', 'required', 'string', 'max:10'],
-            'customer_document_number' => ['sometimes', 'required', 'string', 'max:30'],
+            'customer_phone' => ['sometimes', 'required', 'string', new ColombianMobilePhone],
+            'customer_document_type' => ['sometimes', 'required', 'string', Rule::in(array_keys(DocumentNumberForType::DOCUMENT_TYPES))],
+            'customer_document_number' => ['sometimes', 'required', 'string', new DocumentNumberForType('customer_document_type')],
             'delivery_mode' => ['sometimes', 'required', 'in:PICKUP,COORDINATED_SHIPPING'],
             'delivery_address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', 'required', Rule::in(['CANCELLED'])],

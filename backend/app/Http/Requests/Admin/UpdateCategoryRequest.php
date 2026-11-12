@@ -20,7 +20,7 @@ class UpdateCategoryRequest extends FormRequest
         $categoryId = $this->route('category')?->id;
 
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:160'],
+            'name' => ['sometimes', 'required', 'string', 'min:2', 'max:160', 'not_regex:/[<>]/'],
             'slug' => [
                 'sometimes',
                 'required',
@@ -29,7 +29,7 @@ class UpdateCategoryRequest extends FormRequest
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('categories', 'slug')->ignore($categoryId),
             ],
-            'description' => ['sometimes', 'nullable', 'string'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:2000', 'not_regex:/[<>]/'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderReconcileController;
 use App\Http\Controllers\Api\PaymentIntentController;
+use App\Http\Controllers\Api\SimulatedPaymentController;
 use App\Http\Controllers\Api\Webhooks\WompiWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,7 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+Route::get('payments/config', [SimulatedPaymentController::class, 'config']);
 Route::get('products', [CatalogController::class, 'index']);
 Route::get('products/{productId}', [CatalogController::class, 'show']);
 
@@ -60,4 +62,6 @@ Route::middleware(['auth:sanctum', 'role:CUSTOMER'])->group(function () {
     Route::post('orders/{orderId}/cancel', [OrderController::class, 'cancel']);
     Route::post('orders/{orderId}/payment-intent', [PaymentIntentController::class, 'store']);
     Route::post('orders/{orderId}/reconcile', [OrderReconcileController::class, 'store']);
+    Route::post('orders/{orderId}/simulated-payment', [SimulatedPaymentController::class, 'pay']);
+    Route::post('orders/{orderId}/simulated-payment/complete', [SimulatedPaymentController::class, 'complete']);
 });

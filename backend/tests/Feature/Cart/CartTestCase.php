@@ -51,7 +51,7 @@ abstract class CartTestCase extends TestCase
             'user_id' => $user->id,
             'name' => 'Cliente Sintetico',
             'email' => $user->email,
-            'phone' => '+57-300-000-0000',
+            'phone' => '3000000000',
             'document_type' => 'CC',
             'document_number' => (string) random_int(1000000000, 1999999999),
         ], $customerOverrides));

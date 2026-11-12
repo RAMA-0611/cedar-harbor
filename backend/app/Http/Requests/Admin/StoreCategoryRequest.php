@@ -18,7 +18,7 @@ class StoreCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:160'],
+            'name' => ['required', 'string', 'min:2', 'max:160', 'not_regex:/[<>]/'],
             'slug' => [
                 'required',
                 'string',
@@ -26,7 +26,7 @@ class StoreCategoryRequest extends FormRequest
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('categories', 'slug'),
             ],
-            'description' => ['nullable', 'string'],
+            'description' => ['nullable', 'string', 'max:2000', 'not_regex:/[<>]/'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

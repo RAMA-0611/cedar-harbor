@@ -16,7 +16,7 @@ abstract class CheckoutTestCase extends CartTestCase
             'customer' => [
                 'name' => 'Cliente Demo Rotor',
                 'email' => 'cliente.demo@example.test',
-                'phone' => '+570000000000',
+                'phone' => '3000000000',
                 'document_type' => 'CC',
                 'document_number' => '1000000000',
             ],
