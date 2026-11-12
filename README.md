@@ -1,3 +1,5 @@
+https://srv2153504.hstgr.cloud
+
 # Proyecto Rotor
 
 Prototipo transaccional de comercio electrónico para inventario industrial.
@@ -17,6 +19,105 @@ El repositorio contiene el trabajo colaborativo del proyecto. La organización a
 | Grupo | 2 |
 | Curso | Tecnologías Web |
 | Periodo | 2026-B |
+
+---
+
+## Entrega 4 — Contenerización, despliegue público y CI/CD
+
+![Arquitectura de despliegue](docs/arquitectura-despliegue.png)
+
+### Arranque con un solo comando
+
+Requisitos: Docker Engine / Docker Desktop con **Compose ≥ 2.24** (`docker compose version`). No hace falta crear `.env`: el
+`compose.yaml` trae valores **solo de desarrollo**.
+
+```bash
+git clone https://github.com/RAMA-0611/cedar-harbor.git Rotor
+cd Rotor
+docker compose up -d --build
+```
+
+Cuando `docker compose ps` muestre todos los servicios en `healthy`, abra **http://localhost:8080** (tienda) y
+**http://localhost:8080/login** (panel). Al primer arranque se crean las tablas, el catálogo de demostración y el primer
+administrador. Si no definió `ADMIN_PASSWORD`, la contraseña se genera y se imprime **una sola vez**:
+
+```bash
+docker compose logs app | grep "Contraseña generada"      # Linux / macOS / Git Bash
+docker compose logs app | Select-String "Contraseña generada"   # PowerShell
+```
+
+Apagar conservando datos: `docker compose down`. Borrar también los datos: `docker compose down -v`.
+
+### Servicios
+
+| Servicio | Imagen / rol | Healthcheck |
+|---|---|---|
+| `proxy` | Caddy 2 — único puerto expuesto (80/443), HTTPS automático, enruta `/api`, `/sanctum`, `/storage`, `/up` a la API y el resto a la web | `wget` a `/up` |
+| `app` | Laravel 12 + PHP-FPM 8.3 | `php-fpm` responde en `:9000` y `/up` |
+| `web` | Next.js 16 (standalone) | HTTP 200 en `:3000` |
+| `db` | PostgreSQL 16, volumen `pgdata` | `pg_isready` |
+| `cache` | Redis 7, volumen `redisdata` | `redis-cli ping` |
+
+La base de datos y Redis **no** se publican al host. Los volúmenes (`pgdata`, `redisdata`, `app_storage`, `caddy_data`) conservan
+los datos al reiniciar o recrear contenedores.
+
+### Variables de entorno
+
+Plantilla completa en [`.env.example`](.env.example). Nunca versione `.env`.
+
+| Variable | Obligatoria en producción | Descripción |
+|---|---|---|
+| `SITE_ADDRESS` | Sí | Dominio público (p. ej. `rotor.midominio.com`); con dominio Caddy obtiene el certificado. `localhost` en desarrollo |
+| `APP_URL` | Sí | `https://` + dominio |
+| `POSTGRES_PASSWORD` | Sí | Contraseña de la base (el compose de producción falla si falta) |
+| `SANCTUM_STATEFUL_DOMAINS` | Sí | El dominio sin `https://` (necesario para la sesión por cookie) |
+| `APP_KEY` | Sí en producción | `base64:` + `openssl rand -base64 32`. En desarrollo se genera sola y se guarda en el volumen `app_storage` |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Sí en producción | Primer administrador. En desarrollo, sin contraseña, se genera y se imprime una vez |
+| `PAYMENT_PROVIDER` | No | `simulated` (por defecto) o `wompi` |
+| `WOMPI_*` | Solo con `wompi` | Llaves sandbox de Wompi |
+
+### Pasarela de pago simulada
+
+Con `PAYMENT_PROVIDER=simulated` el checkout redirige a una pantalla de pago con el flujo completo. Tarjetas de prueba
+(cualquier fecha futura y CVC de 3 dígitos):
+
+| Tarjeta | Resultado |
+|---|---|
+| 4242 4242 4242 4242 | Aprobada → pedido `PAID`, stock consumido |
+| 4000 0000 0000 0002 | Rechazada → pedido `FAILED`, reserva liberada |
+| 4000 0000 0000 9995 | Fondos insuficientes → `FAILED` |
+| 4000 0000 0000 0119 | Error de la pasarela → `FAILED` |
+| 4000 0000 0000 3220 | Pendiente → se resuelve con los botones «Aprobar / Rechazar» |
+
+No se almacenan números de tarjeta (solo los últimos 4 dígitos).
+
+### Despliegue y reversión
+
+1. Prepare un servidor con Docker, abra los puertos 80 y 443 y apunte el DNS del dominio a su IP.
+2. Cree en GitHub los *secrets* `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, `GHCR_PULL_TOKEN` y la
+   *variable* `PUBLIC_URL` (detalle en [`docs/guia-despliegue.md`](docs/guia-despliegue.md)); cree el `.env` de producción
+   **directamente en el servidor**, nunca en el repositorio.
+3. Un *push* a `main` ejecuta `.github/workflows/ci-cd.yaml`: pruebas → construcción y publicación en GHCR → despliegue por SSH
+   → espera a `healthy` → verificación de `PUBLIC_URL`. Si una prueba falla, **no se construye ni se despliega**.
+4. **Reversión:** *Actions → CI-CD → Run workflow* indicando `image_tag` (p. ej. `sha-1a2b3c4` o `v0.4.0`).
+
+### Documentación de la entrega
+
+- [`docs/arquitectura-despliegue.png`](docs/arquitectura-despliegue.png) — diagrama de arquitectura
+- [`docs/informe-rendimiento.md`](docs/informe-rendimiento.md) — Lighthouse antes / después
+- [`docs/decisiones.md`](docs/decisiones.md) — decisiones técnicas (ADR-E4-001 a 007)
+
+### Estado de la Entrega 4
+
+| Elemento | Estado |
+|---|---|
+| Validaciones de formularios (teléfono, documento, nombre, contraseña, producto, carrito) | Implementado, con pruebas de backend y de navegador |
+| Pasarela de pago simulada (aprobada, rechazada, fondos insuficientes, error, pendiente) | Implementado |
+| Diseño adaptable (teléfonos Android, tableta y escritorio) | Implementado; prueba automática en `frontend/e2e/mobile-android.spec.ts` |
+| Dockerfile multietapa, `compose.yaml`, healthchecks, volúmenes, `.dockerignore` | Implementado |
+| Flujo CI/CD con imágenes versionadas en GHCR y despliegue por SSH | Implementado en `.github/workflows/ci-cd.yaml` |
+| Diagrama de arquitectura e informe de rendimiento | En `docs/` |
+| Pendiente para la Entrega 5 | Renderizado del catálogo en el servidor para bajar el LCP, reducción de JavaScript sin usar y lo que defina la especificación de esa entrega |
 
 ---
 
@@ -135,10 +236,39 @@ Documentación interactiva (fuente única `api/openapi.yaml`):
 
 ### Requisitos
 
-- PHP 8.2+
+- PHP 8.2+ con las extensiones **bcmath** (obligatoria: los cálculos de dinero la usan), pgsql, pdo_pgsql, mbstring, xml y curl
 - Composer
 - PostgreSQL 16
+- Node.js 22+ y npm (frontend)
 - Node.js solo donde aplique (herramientas OpenAPI opcionales vía `npx`)
+
+### Puesta en marcha rápida en Windows
+
+Requisitos: PHP 8.2+ (con `bcmath`, `pgsql`, `pdo_pgsql`, `mbstring`, `openssl`, `curl`, `fileinfo` activados en `php.ini`), Composer, PostgreSQL 16 y Node.js 22+. Cree las bases `rotor` y `rotor_testing` y luego, desde la raíz del proyecto:
+
+```powershell
+copy backend\.env.example backend\.env     # edite DB_PASSWORD
+node scripts/setup.mjs   # comprueba requisitos, instala, migra y crea el administrador
+node scripts/start.mjs   # API :8000 y tienda :3000
+```
+
+El administrador inicial es `admin@rotor.test` / `Admin12345` (otro: `php artisan rotor:create-admin correo clave`). Más detalle en la guía de puesta en marcha.
+
+### Puesta en marcha rápida en Linux (Ubuntu / Linux Mint)
+
+```bash
+sudo apt install php php-cli php-bcmath php-pgsql php-mbstring php-xml php-curl php-zip composer postgresql nodejs npm
+# Cree la base de datos y el usuario en PostgreSQL y edite backend/.env (DB_*) antes de continuar.
+node scripts/setup.mjs   # comprueba requisitos, instala dependencias, migra y enlaza storage
+node scripts/start.mjs   # API en :8000 y frontend en :3000
+```
+
+Notas importantes:
+
+- Si `php -m | grep bcmath` no muestra nada, el carrito y el checkout fallan con error 500.
+- Las imágenes de producto se sirven con o sin `php artisan storage:link` (el instalador intenta crearlo; en Windows puede requerir modo desarrollador).
+- Para el pago de prueba cargue las llaves sandbox `WOMPI_*` en `backend/.env`; sin ellas, con `PAYMENT_PROVIDER=wompi`, la API responde `503 PAYMENT_NOT_CONFIGURED`. Con `PAYMENT_PROVIDER=simulated` (valor por defecto del `.env.example`) se usa la pasarela simulada y no hacen falta llaves.
+- Abra la tienda siempre en `http://127.0.0.1:3000` (mismo host que `SANCTUM_STATEFUL_DOMAINS` y `APP_URL`).
 
 ### Setup backend
 
@@ -612,3 +742,87 @@ This repository is publicly accessible for transparency, educational review and 
 Unless expressly authorized in writing, reproduction, modification, distribution, commercial use, deployment or incorporation of this software into another product is not permitted.
 
 See [LICENSE](./LICENSE) for the complete terms. **All Rights Reserved.**
+
+---
+
+## Continuación — Entrega 4 (académica): cambios, arreglos y guías — tags SemVer vigentes: v0.4.0 y v0.5.0 (inmutables)
+
+Esta sección continúa el registro del proyecto: todo lo anterior se conserva como historia de las entregas 2 y 3 y del MVP
+v0.5.0 documentado arriba. Aquí se anotan los cambios y arreglos hechos para la Entrega 4.
+
+**Aplicación en línea:** https://srv2153504.hstgr.cloud · **Panel:** https://srv2153504.hstgr.cloud/login
+
+### Guías de esta versión
+
+| Guía | Contenido |
+|---|---|
+| [`docs/INSTALACION.md`](docs/INSTALACION.md) | Cómo instalar y probar el proyecto completo desde cero (Windows, Linux y macOS) con un solo comando |
+| [`docs/DESPLIEGUE-HOSTINGER.md`](docs/DESPLIEGUE-HOSTINGER.md) | Cómo publicarlo en el VPS de Hostinger con HTTPS, y cómo dejar el despliegue automático (CI/CD), paso a paso con los comandos |
+| [`docs/DIFICULTADES.md`](docs/DIFICULTADES.md) | Dificultades y errores que se presentaron durante el desarrollo y cómo se resolvieron |
+| [`docs/guia-despliegue.md`](docs/guia-despliegue.md) | Resumen de operación del servidor |
+| [`docs/informe-rendimiento.md`](docs/informe-rendimiento.md) | Lighthouse antes y después |
+| [`docs/decisiones.md`](docs/decisiones.md) | Decisiones técnicas (ADR-E4-001 a 007) |
+| [`docs/arquitectura-despliegue.png`](docs/arquitectura-despliegue.png) | Diagrama de arquitectura |
+
+### Arranque rápido
+
+```bash
+git clone https://github.com/RAMA-0611/cedar-harbor.git Rotor
+cd Rotor
+docker compose up -d --build
+```
+
+Cuando `docker compose ps` muestre los cinco servicios en `healthy`, abra http://localhost:8080. Detalle completo, incluida la
+instalación de Docker en un computador nuevo, en [`docs/INSTALACION.md`](docs/INSTALACION.md).
+
+### Cambios y arreglos de esta versión
+
+**Validaciones (navegador y servidor)**
+
+- Teléfono: 10 dígitos y debe empezar por 3.
+- Tipo de documento: lista fija (CC, CE, NIT, PP) con reglas de número para cada tipo.
+- Nombre: solo letras, de 2 a 100 caracteres.
+- Contraseña: de 8 a 72 caracteres, con letras y números.
+- Carrito: cantidad de 1 a 999, limitada al stock disponible.
+- Tarjeta: algoritmo de Luhn, vencimiento futuro y CVC.
+- Productos y categorías: SKU, nombre, precio con 2 decimales, tope de stock y sin los caracteres `<` ni `>`.
+- Pruebas: 261 de backend y 23 de navegador (3 con pantalla de teléfono Android), todas en verde.
+
+**Pasarela de pago simulada**
+
+- Flujo completo con cinco tarjetas de prueba (aprobada, rechazada, fondos insuficientes, error y pendiente) y la misma
+  liquidación que Wompi. Las tarjetas de prueba ahora se ven con claridad en la pantalla de pago.
+
+**Diseño, accesibilidad y adaptación a celulares**
+
+- Identidad visual de ByteBlade: logo en el encabezado, el pie, el ingreso y el menú de administración.
+- Encabezado claro, portada con degradado, tarjetas de producto con elevación, botones y campos más grandes y foco visible.
+- Carrito apilado en tarjetas en pantallas de menos de 640 px; menú «Menú» en el panel de administración.
+- Campo de contraseña con **ojo** para mostrar u ocultar en el ingreso, el registro y la gestión de usuarios.
+
+**Contenerización y despliegue**
+
+- Dockerfile multietapa, `compose.yaml` con cinco servicios y healthchecks, volúmenes persistentes y `.dockerignore`.
+- Caddy como único punto de entrada con HTTPS automático (Let's Encrypt).
+- Primer arranque automático: migraciones, catálogo de demostración y primer administrador.
+- Servidor VPS Ubuntu 24.04 en Hostinger con la aplicación publicada en https://srv2153504.hstgr.cloud.
+- Flujo CI/CD en `.github/workflows/ci-cd.yaml`: pruebas → imágenes en GHCR → despliegue por SSH → verificación; si una prueba
+  falla no se construye ni se despliega; reversión manual por etiqueta de imagen.
+
+**Documentación**
+
+- Guías nuevas de instalación, despliegue y dificultades (tabla anterior), informe de rendimiento y decisiones técnicas.
+
+### Estado de la Entrega 4
+
+| Elemento | Estado |
+|---|---|
+| Validaciones de formularios | Implementado, con pruebas de backend y de navegador |
+| Pasarela de pago simulada | Implementado |
+| Diseño adaptable (Android, tableta, escritorio) e identidad ByteBlade | Implementado, con prueba automática |
+| Contraseña con ojo | Implementado |
+| Contenedores, healthchecks y volúmenes | Implementado |
+| Despliegue público con HTTPS | En línea: https://srv2153504.hstgr.cloud |
+| CI/CD con GHCR y despliegue por SSH | Implementado; configuración de secretos en GitHub según `docs/DESPLIEGUE-HOSTINGER.md` |
+| Informe de Lighthouse sobre la URL pública | Medido antes y después: catálogo 99 / 100 / 100 y registro 100 / 100 / 100 (rendimiento / accesibilidad / buenas prácticas) |
+| Pendiente para la Entrega 5 | Renderizado del catálogo en el servidor para bajar el LCP y reducción de JavaScript sin usar |

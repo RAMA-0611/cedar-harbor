@@ -129,3 +129,66 @@ transaccional. El detalle técnico está en `docs/architecture/DATA_MODEL.md`
   modelo conceptual futuro (inventario como frontera de integración); E3 no
   la borra, la implementa vía adaptador local reemplazable sin cambiar el
   contrato público.
+
+
+# Decisiones de despliegue — Entrega 4
+
+## ADR-E4-001 — Una sola imagen con dos objetivos (Dockerfile multietapa)
+
+- **Contexto.** El repositorio tiene API (Laravel) e interfaz (Next.js) y la rúbrica pide un Dockerfile multietapa.
+- **Decisión.** Un `Dockerfile` en la raíz con objetivos `app` (PHP-FPM) y `web` (Next.js standalone). Las dependencias se
+  instalan en etapas aparte (`composer install --no-dev`, `npm ci`) para cachear capas y dejar fuera herramientas de
+  desarrollo.
+- **Consecuencia.** Las imágenes finales no contienen compiladores, `node_modules` completos ni dependencias de desarrollo.
+
+## ADR-E4-002 — Proxy Caddy como único servicio expuesto, mismo origen
+
+- **Decisión.** Caddy publica 80/443 y enruta por ruta: `/api`, `/sanctum`, `/storage`, `/up` → `app` (FastCGI), el resto →
+  `web`. Obtiene y renueva el certificado HTTPS solo.
+- **Por qué mismo origen.** Las cookies de sesión de Sanctum necesitan que SPA y API compartan dominio; con un único
+  origen no hay CORS ni cookies de terceros, y la imagen `web` se compila con `NEXT_PUBLIC_API_BASE_URL=""` (rutas
+  relativas), de modo que **la misma imagen sirve para cualquier dominio**.
+- **Detalle verificado.** No se usa `php_fastcgi`: comprueba la existencia de archivos en el contenedor del proxy, que no
+  contiene el código de Laravel, y devolvía respuestas vacías. Se usa `rewrite * /index.php` + `reverse_proxy` con
+  transporte `fastcgi` (comprobado con Caddy y php-fpm reales).
+
+## ADR-E4-003 — Redis para caché y sesiones; PostgreSQL con volumen
+
+- **Decisión.** `cache` (Redis 7, appendonly) guarda caché y sesiones; `db` (PostgreSQL 16) y `cache` usan volúmenes
+  nombrados (`pgdata`, `redisdata`). `app_storage` conserva imágenes subidas, logs y la `APP_KEY` generada.
+- **Consecuencia.** Reiniciar o recrear contenedores no pierde datos. Los servicios se llaman entre sí por nombre
+  (`db`, `cache`), nunca `127.0.0.1`.
+
+## ADR-E4-004 — Secretos fuera del repositorio
+
+- **Decisión.** `.env.example` solo trae nombres. `compose.yaml` funciona sin `.env` con valores de **desarrollo** (la
+  base no se publica al host). `compose.prod.yaml` **exige** las variables sensibles (`${VAR:?}`) y falla si faltan.
+  En desarrollo la `APP_KEY` se genera en el primer arranque y vive en el volumen, y la contraseña del primer
+  administrador, si no se define, se genera y se imprime una sola vez en el log; en producción ambas son obligatorias.
+- **Consecuencia.** El valor `rotor_dev_only` del compose es la única credencial literal y es solo de desarrollo; en
+  producción no se usa porque el override obliga a definir `POSTGRES_PASSWORD`.
+
+## ADR-E4-005 — CI/CD: pruebas como compuerta, imágenes versionadas, despliegue por SSH
+
+- **Decisión.** `ci-cd.yaml`: PHPUnit, tipos/lint/compilación del frontend y validación de compose/Caddyfile/secretos
+  deben pasar antes de construir; luego se publican `app` y `web` en GHCR con etiquetas `sha-xxxxxxx`, `latest` y la versión
+  (`v0.4.0`), y se despliega por SSH con `docker compose pull && up -d`, esperando a que todo quede `healthy`.
+  Las pruebas E2E con navegador corren pero no bloquean (evidencia informativa).
+- **Rollback.** Ejecución manual del flujo con `image_tag` de una versión anterior.
+
+## ADR-E4-006 — Pasarela de pago simulada incluida
+
+- **Contexto.** Wompi sandbox necesita llaves y red externa; la revisión debe funcionar sin ellas.
+- **Decisión.** `PAYMENT_PROVIDER=simulated` (por defecto) activa un proceso de pago completo con tarjetas de prueba
+  (aprobada, rechazada, fondos insuficientes, error y pendiente) que **reutiliza el mismo servicio de asiento** que el
+  webhook de Wompi (`PaymentSettlementService`): mismo cambio de estado del pedido y misma liberación o consumo de
+  inventario. `PAYMENT_PROVIDER=wompi` restablece el flujo real.
+- **Seguridad.** Nunca se guardan datos de tarjeta (solo los últimos 4 dígitos); el simulador responde 404 si el
+  proveedor activo es Wompi.
+
+## ADR-E4-007 — Validación de formularios estricta y compartida
+
+- **Decisión.** Reglas idénticas en backend (`app/Rules`) y frontend (`src/lib/validation.ts`): teléfono
+  `^3[0-9]{9}$`; tipo de documento como **lista cerrada** (CC, CE, NIT, PP) con formato del número según el tipo; nombre
+  solo letras; contraseña 8–72 con letra y número; cantidades enteras de 1 al stock disponible. Los campos numéricos
+  filtran caracteres inválidos al escribir o pegar. El backend es la autoridad.
