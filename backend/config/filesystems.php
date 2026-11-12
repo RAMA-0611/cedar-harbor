@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // false: el disco privado no se sirve por HTTP. Con true Laravel registra la ruta
+            // /storage/{path} (403 sin firma) que choca con las imágenes públicas.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

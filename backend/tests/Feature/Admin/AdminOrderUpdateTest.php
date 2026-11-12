@@ -16,14 +16,14 @@ class AdminOrderUpdateTest extends AdminOrderTestCase
         $this->patchJson('/api/admin/orders/'.$placed['orderId'], [
             'customer_name' => 'Nombre Admin Editado',
             'customer_email' => 'admin.editado@example.test',
-            'customer_phone' => '+57-300-222-3333',
+            'customer_phone' => '3002223333',
             'customer_document_type' => 'NIT',
             'customer_document_number' => '900111222',
         ])
             ->assertOk()
             ->assertJsonPath('customer.name', 'Nombre Admin Editado')
             ->assertJsonPath('customer.email', 'admin.editado@example.test')
-            ->assertJsonPath('customer.phone', '+57-300-222-3333')
+            ->assertJsonPath('customer.phone', '3002223333')
             ->assertJsonPath('customer.document_type', 'NIT')
             ->assertJsonPath('customer.document_number', '900111222')
             ->assertJsonPath('subtotal', $placed['subtotal'])

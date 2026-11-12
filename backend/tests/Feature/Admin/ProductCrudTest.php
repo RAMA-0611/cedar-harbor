@@ -194,7 +194,7 @@ class ProductCrudTest extends AdminTestCase
             'customer_email' => 'order@example.test',
             'customer_phone' => '3001112233',
             'customer_document_type' => 'CC',
-            'customer_document_number' => '1001',
+            'customer_document_number' => '1001001',
             'delivery_mode' => 'PICKUP',
             'delivery_address' => null,
             'subtotal' => '10000.00',
@@ -225,5 +225,36 @@ class ProductCrudTest extends AdminTestCase
             'order_id' => $order->id,
             'product_name' => $product->name,
         ]);
+    }
+
+    public function test_product_fields_reject_invalid_formats(): void
+    {
+        $this->actingAsAdmin();
+        $category = $this->createCategory();
+        $base = [
+            'category_id' => $category->id,
+            'sku' => 'SKU-VAL-001',
+            'name' => 'Producto válido',
+            'price' => '10.50',
+            'currency' => 'COP',
+            'tax_rate' => '0.19',
+            'stock_quantity' => 1,
+        ];
+
+        $cases = [
+            'sku' => ['sku' => 'SKU con espacios'],
+            'name' => ['name' => '<script>alert(1)</script>'],
+            'price' => ['price' => '10.999'],
+            'stock_quantity' => ['stock_quantity' => 1000001],
+            'brand' => ['brand' => '<b>Marca</b>'],
+        ];
+
+        foreach ($cases as $field => $override) {
+            $response = $this->postJson('/api/admin/products', array_merge($base, $override));
+            $this->assertApiError($response, 422, 'VALIDATION_ERROR');
+            $this->assertArrayHasKey($field, $response->json('details.errors') ?? [], "Campo {$field}");
+        }
+
+        $this->postJson('/api/admin/products', $base)->assertCreated();
     }
 }

@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests\Checkout;
 
+use App\Rules\ColombianMobilePhone;
+use App\Rules\DocumentNumberForType;
+use App\Rules\PersonName;
+
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -20,16 +24,17 @@ class CheckoutRequest extends FormRequest
     {
         return [
             'customer' => ['required', 'array:name,email,phone,document_type,document_number'],
-            'customer.name' => ['required', 'string', 'max:160'],
-            'customer.email' => ['required', 'email', 'max:254'],
-            'customer.phone' => ['required', 'string', 'max:30'],
-            'customer.document_type' => ['required', 'string', 'max:10'],
-            'customer.document_number' => ['required', 'string', 'max:30'],
+            'customer.name' => ['required', 'string', new PersonName],
+            'customer.email' => ['required', 'email:rfc', 'max:254'],
+            'customer.phone' => ['required', 'string', new ColombianMobilePhone],
+            'customer.document_type' => ['required', 'string', Rule::in(array_keys(DocumentNumberForType::DOCUMENT_TYPES))],
+            'customer.document_number' => ['required', 'string', new DocumentNumberForType('customer.document_type')],
             'delivery' => ['required', 'array:mode,address'],
             'delivery.mode' => ['required', 'in:PICKUP,COORDINATED_SHIPPING'],
             'delivery.address' => [
                 'nullable',
                 'string',
+                'min:5',
                 'max:255',
                 Rule::requiredIf(fn () => $this->input('delivery.mode') === 'COORDINATED_SHIPPING'),
             ],

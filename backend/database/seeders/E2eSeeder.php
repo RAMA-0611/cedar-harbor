@@ -28,7 +28,7 @@ class E2eSeeder extends Seeder
         ]);
 
         $customerUser = User::query()->create([
-            'name' => 'Customer E2E',
+            'name' => 'Cliente Pruebas',
             'email' => $customerEmail,
             'password' => $customerPassword,
             'role' => 'CUSTOMER',
@@ -36,9 +36,9 @@ class E2eSeeder extends Seeder
 
         Customer::query()->create([
             'user_id' => $customerUser->id,
-            'name' => 'Customer E2E',
+            'name' => 'Cliente Pruebas',
             'email' => $customerEmail,
-            'phone' => '+579000000001',
+            'phone' => '3009000001',
             'document_type' => 'CC',
             'document_number' => '9000000001',
         ]);

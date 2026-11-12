@@ -96,9 +96,9 @@ class OrderIdempotencyServiceTest extends TestCase
             'customer' => [
                 'name' => 'Ana',
                 'email' => 'ana@example.test',
-                'phone' => '+570000000001',
+                'phone' => '3000000001',
                 'document_type' => 'CC',
-                'document_number' => '1001',
+                'document_number' => '1001001',
             ],
             'delivery' => [
                 'mode' => 'COORDINATED_SHIPPING',
@@ -112,8 +112,8 @@ class OrderIdempotencyServiceTest extends TestCase
                 'mode' => 'COORDINATED_SHIPPING',
             ],
             'customer' => [
-                'document_number' => '1001',
-                'phone' => '+570000000001',
+                'document_number' => '1001001',
+                'phone' => '3000000001',
                 'email' => 'ana@example.test',
                 'document_type' => 'CC',
                 'name' => 'Ana',
@@ -261,7 +261,7 @@ class OrderIdempotencyServiceTest extends TestCase
             'customer' => [
                 'name' => 'Cliente Demo',
                 'email' => 'cliente.demo@example.test',
-                'phone' => '+570000000000',
+                'phone' => '3000000000',
                 'document_type' => 'CC',
                 'document_number' => '1000000000',
             ],
@@ -296,7 +296,7 @@ class OrderIdempotencyServiceTest extends TestCase
             'user_id' => $user->id,
             'name' => 'Cliente Sintetico',
             'email' => $user->email,
-            'phone' => '+57-300-000-0000',
+            'phone' => '3000000000',
             'document_type' => 'CC',
             'document_number' => (string) random_int(1000000000, 1999999999),
         ], $overrides));
@@ -311,7 +311,7 @@ class OrderIdempotencyServiceTest extends TestCase
             'currency' => 'COP',
             'customer_name' => 'Cliente Demo',
             'customer_email' => 'cliente.demo@example.test',
-            'customer_phone' => '+570000000000',
+            'customer_phone' => '3000000000',
             'customer_document_type' => 'CC',
             'customer_document_number' => '1000000000',
             'delivery_mode' => 'PICKUP',
