@@ -15,7 +15,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
           <Link href="/" className="store-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-byteblade.png" alt="ByteBlade" width={150} height={41} className="store-brand-logo" />
-            <span className="store-brand-name">Proyecto Rotor</span>
+            <span className="store-brand-name">Proyecto Rotor2</span>
           </Link>
           <nav className="store-nav" aria-label="Navegación tienda">
             <Link href="/">Catálogo</Link>
