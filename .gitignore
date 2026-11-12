@@ -16,6 +16,7 @@
 /backend/storage/framework/cache/*
 /backend/storage/framework/sessions/*
 /backend/storage/framework/views/*
+!/backend/storage/framework/views/.gitignore
 /backend/bootstrap/cache/*.php
 
 # Node / Next

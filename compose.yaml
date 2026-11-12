@@ -1,0 +1,129 @@
+# Proyecto Rotor · ByteBlade — conjunto completo con UN comando:
+#
+#     docker compose up --build
+#
+# Servicios:  proxy (Caddy, único expuesto)  ->  app (Laravel/PHP-FPM) + web (Next.js)
+#             app  ->  db (PostgreSQL) y cache (Redis)
+# Sin archivo .env funciona con valores de DESARROLLO; para producción se usa compose.prod.yaml
+# (exige las variables sin valores por defecto). Ver README.md y .env.example.
+
+name: rotor
+
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # certificados TLS: sin este volumen se pedirían de nuevo en cada reinicio
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/healthz >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      target: app
+    image: ${APP_IMAGE:-rotor-app:local}
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment: &app-env
+      APP_NAME: ${APP_NAME:-Proyecto Rotor}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_KEY: ${APP_KEY:-}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      FRONTEND_URL: ${APP_URL:-http://localhost:8080}
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Dentro del contenedor el host de la base es el NOMBRE DEL SERVICIO, nunca 127.0.0.1.
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB:-rotor}
+      DB_USERNAME: ${POSTGRES_USER:-rotor}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-rotor_dev_only}
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: cache
+      REDIS_PORT: "6379"
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-localhost:${HTTP_PORT:-8080},127.0.0.1:${HTTP_PORT:-8080}}
+      CORS_ALLOWED_ORIGINS: ${APP_URL:-http://localhost:8080}
+      QUEUE_CONNECTION: sync
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-simulated}
+      WOMPI_ENV: ${WOMPI_ENV:-sandbox}
+      WOMPI_PUBLIC_KEY: ${WOMPI_PUBLIC_KEY:-}
+      WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY:-}
+      WOMPI_INTEGRITY_SECRET: ${WOMPI_INTEGRITY_SECRET:-}
+      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rotor.test}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - app_storage:/var/www/html/storage   # imágenes subidas, logs y APP_KEY generada
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: web
+    image: ${WEB_IMAGE:-rotor-web:local}
+    restart: unless-stopped
+    expose:
+      - "3000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rotor}
+      POSTGRES_USER: ${POSTGRES_USER:-rotor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rotor_dev_only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data     # sin este volumen la base queda vacía al reiniciar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  redisdata:
+  app_storage:
+  caddy_data:
+  caddy_config:

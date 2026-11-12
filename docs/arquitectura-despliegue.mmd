@@ -1,0 +1,52 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Helvetica, sans-serif", "fontSize": "20px", "primaryColor": "#EAF2FF", "primaryBorderColor": "#1F4E9C", "lineColor": "#334155"}, "flowchart": {"nodeSpacing": 40, "rankSpacing": 60, "curve": "basis"}}}%%
+flowchart TB
+    user(["Navegador del usuario<br/>(internet)"])
+
+    subgraph host["Servidor / VPS · Docker Compose · red interna «rotor_default»"]
+        direction TB
+
+        proxy["<b>proxy</b> · Caddy 2<br/>HTTPS automático (Let's Encrypt)<br/>puertos 80 y 443<br/><i>ÚNICO servicio expuesto</i>"]
+
+        web["<b>web</b> · Next.js 16<br/>standalone · :3000<br/>interfaz tienda + panel admin<br/>(el navegador llama a /api<br/>al mismo origen, vía proxy)"]
+
+        app["<b>app</b> · Laravel 12 + PHP-FPM<br/>:9000 (FastCGI)<br/>API REST · Sanctum · pagos"]
+
+        db[("<b>db</b> · PostgreSQL 16<br/>:5432")]
+        cache[("<b>cache</b> · Redis 7<br/>:6379<br/>caché y sesiones")]
+
+        v_pg[/"volumen pgdata"/]
+        v_redis[/"volumen redisdata"/]
+        v_storage[/"volumen app_storage<br/>imágenes · logs · APP_KEY"/]
+        v_caddy[/"volúmenes caddy_data<br/>y caddy_config<br/>(certificados TLS)"/]
+    end
+
+    wompi(["Wompi (opcional)<br/>PAYMENT_PROVIDER=wompi"])
+    ghcr(["GitHub Container Registry<br/>imágenes versionadas"])
+    gha(["GitHub Actions<br/>ci-cd.yaml"])
+
+    user -- "HTTPS :443<br/>(HTTP :80 redirige)" --> proxy
+    proxy -- "/ y páginas<br/>HTTP :3000" --> web
+    proxy -- "/api · /sanctum · /storage · /up<br/>FastCGI :9000" --> app
+    app -- "SQL :5432<br/>host=db" --> db
+    app -- "RESP :6379<br/>host=cache" --> cache
+    app -. "webhook y consulta<br/>HTTPS saliente" .-> wompi
+
+    db --- v_pg
+    cache --- v_redis
+    app --- v_storage
+    proxy --- v_caddy
+
+    gha -- "1 · pruebas  2 · build  3 · push" --> ghcr
+    gha -- "4 · SSH: compose pull + up -d" --> host
+    ghcr -. "pull app / web" .-> host
+
+    classDef exposed fill:#FFF3CD,stroke:#B45309,stroke-width:3px,color:#111;
+    classDef internal fill:#EAF2FF,stroke:#1F4E9C,stroke-width:2px,color:#111;
+    classDef data fill:#E8F7EE,stroke:#15803D,stroke-width:2px,color:#111;
+    classDef vol fill:#F1F5F9,stroke:#64748B,stroke-dasharray: 4 3,color:#111;
+    classDef ext fill:#F8FAFC,stroke:#475569,color:#111;
+    class proxy exposed;
+    class web,app internal;
+    class db,cache data;
+    class v_pg,v_redis,v_storage,v_caddy vol;
+    class user,wompi,ghcr,gha ext;

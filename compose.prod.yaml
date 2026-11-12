@@ -1,0 +1,38 @@
+# Superposición de PRODUCCIÓN. Se usa junto a compose.yaml:
+#
+#     docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# - Usa las imágenes versionadas del registro (las publica el flujo CI/CD) en lugar de construirlas.
+# - Exige las variables sensibles: si faltan, Compose se detiene con un mensaje claro.
+# - Publica 80 y 443 para que Caddy emita el certificado HTTPS del dominio.
+
+services:
+  proxy:
+    ports: !override
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Defina SITE_ADDRESS con el dominio público (ej. rotor.midominio.com)}
+
+  app:
+    build: !reset null
+    image: ${APP_IMAGE:?Defina APP_IMAGE (ej. ghcr.io/usuario/repo-app:v0.4.0)}
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:?Defina APP_URL con https://su-dominio}
+      FRONTEND_URL: ${APP_URL:?Defina APP_URL con https://su-dominio}
+      CORS_ALLOWED_ORIGINS: ${APP_URL:?Defina APP_URL con https://su-dominio}
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:?Defina SANCTUM_STATEFUL_DOMAINS con el dominio sin esquema}
+      SESSION_SECURE_COOKIE: "true"
+      APP_KEY: ${APP_KEY:?Defina APP_KEY (php artisan key:generate --show)}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD para el primer administrador}
+
+  web:
+    build: !reset null
+    image: ${WEB_IMAGE:?Defina WEB_IMAGE (ej. ghcr.io/usuario/repo-web:v0.4.0)}
+
+  db:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}

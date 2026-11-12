@@ -1,0 +1,49 @@
+# Proxy inverso de Proyecto Rotor: ÚNICO servicio expuesto a internet.
+#
+#   SITE_ADDRESS=http://localhost      -> local, sin certificado
+#   SITE_ADDRESS=rotor.midominio.com   -> producción: Caddy obtiene y renueva el certificado
+#                                         (Let's Encrypt) solo, y redirige HTTP -> HTTPS.
+#
+# Enrutamiento por ruta (mismo origen, así las cookies de sesión de Sanctum funcionan sin CORS):
+#   /api/*, /sanctum/*, /storage/*, /up  -> servicio "app" (PHP-FPM, protocolo FastCGI)
+#   todo lo demás                        -> servicio "web" (Next.js)
+
+{$SITE_ADDRESS:http://localhost} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	@backend path /api/* /sanctum/* /storage/* /up
+	handle @backend {
+		# Laravel tiene un único punto de entrada (public/index.php). No se usa "php_fastcgi" porque
+		# comprueba la existencia de archivos en ESTE contenedor, que no contiene el código de la app.
+		# REQUEST_URI conserva la URL original, que es la que Laravel enruta.
+		rewrite * /index.php
+		reverse_proxy app:9000 {
+			transport fastcgi {
+				root /var/www/html/public   # ruta DENTRO del contenedor "app"
+				split .php
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+	}
+}
+
+# Solo para el healthcheck del propio contenedor (no se publica ningún puerto).
+:8081 {
+	respond /healthz "ok" 200
+}

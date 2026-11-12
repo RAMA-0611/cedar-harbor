@@ -1,0 +1,43 @@
+# Control de versiones y editor
+.git
+.github
+.gitignore
+.vscode
+.idea
+
+# Secretos y entornos locales (nunca entran a una imagen)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+
+# Dependencias y artefactos que la imagen vuelve a generar
+**/node_modules
+frontend/.next
+frontend/out
+frontend/playwright-report
+frontend/test-results
+backend/vendor
+backend/tests
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+backend/.phpunit.result.cache
+
+# Material que no se ejecuta en producción
+docs
+web
+tests
+scripts
+api
+*.md
+!backend/README.md
+compose*.yaml
+Dockerfile
+.dockerignore

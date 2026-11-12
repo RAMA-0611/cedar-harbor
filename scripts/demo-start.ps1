@@ -38,6 +38,16 @@ try {
   Pop-Location
 }
 
+# Enlace public/storage (imágenes de productos subidas)
+Push-Location $backend
+try {
+  if (-not (Test-Path (Join-Path $backend "public/storage"))) {
+    php artisan storage:link | Out-Null
+  }
+} finally {
+  Pop-Location
+}
+
 # Laravel :8000
 $laravelStart = Get-MonoMs
 $existing8000 = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
