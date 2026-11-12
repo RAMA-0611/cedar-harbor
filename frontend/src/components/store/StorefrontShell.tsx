@@ -19,7 +19,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
           </Link>
           <nav className="store-nav" aria-label="Navegación tienda">
             <Link href="/">Catálogo15</Link>
-            <Link href="/carrito">Carrito12</Link>
+            <Link href="/carrito">Carrito112</Link>
             {user?.role === "CUSTOMER" ? (
               <>
                 <span className="store-nav-user">{user.email}</span>
