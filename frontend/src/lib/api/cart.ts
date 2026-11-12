@@ -16,6 +16,6 @@ export async function updateCartItem(cartItemId: string, quantity: number): Prom
   return apiMutation<CartView>(`/api/cart/items/${cartItemId}`, "PATCH", { quantity });
 }
 
-export async function removeCartItem(cartItemId: string): Promise<CartView> {
-  return apiMutation<CartView>(`/api/cart/items/${cartItemId}`, "DELETE");
+export async function removeCartItem(cartItemId: string): Promise<void> {
+  await apiMutation<unknown>(`/api/cart/items/${cartItemId}`, "DELETE");
 }

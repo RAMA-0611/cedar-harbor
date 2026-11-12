@@ -119,7 +119,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
         <aside className="hidden min-h-dvh flex-col border-r border-border bg-surface p-5 lg:flex">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent">ByteBlade</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-byteblade-blanco.png" alt="ByteBlade" width={150} height={41} className="mb-2 h-9 w-auto" />
           <p className="mb-8 text-lg font-semibold text-foreground">Proyecto Rotor</p>
           {nav}
           {account}

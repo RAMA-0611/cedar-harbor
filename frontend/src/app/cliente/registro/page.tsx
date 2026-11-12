@@ -2,10 +2,13 @@
 
 import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { useAuth } from "@/hooks/useAuth";
+import { ContactFields } from "@/components/store/ContactFields";
+import { validateContact, validateEmail, validatePassword, type FieldErrors } from "@/lib/validation";
 import { ApiClientError } from "@/types/api";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 const safeNextPath = (raw: string | null): string => {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
@@ -27,10 +30,27 @@ function CustomerRegisterForm() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const errors: FieldErrors = validateContact({
+      name,
+      phone,
+      document_type: documentType,
+      document_number: documentNumber,
+    });
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+    const passwordError = validatePassword(password);
+    if (passwordError) errors.password = passwordError;
+    if (password !== passwordConfirmation) errors.password_confirmation = "Las contraseñas no coinciden.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError("Revisa los campos marcados antes de continuar.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -49,6 +69,14 @@ function CustomerRegisterForm() {
       }
       router.replace(next);
     } catch (caught) {
+      if (caught instanceof ApiClientError && caught.error.details && typeof caught.error.details === "object") {
+        const raw = (caught.error.details as { errors?: Record<string, string[]> }).errors ?? {};
+        const mapped: FieldErrors = {};
+        for (const [key, messages] of Object.entries(raw)) {
+          if (Array.isArray(messages) && messages[0]) mapped[key] = messages[0];
+        }
+        setFieldErrors(mapped);
+      }
       setError(
         caught instanceof ApiClientError
           ? caught.error.message
@@ -66,19 +94,17 @@ function CustomerRegisterForm() {
       <h1>Crear cuenta</h1>
       <p className="store-meta">Crea tu cuenta para comprar y consultar tus pedidos.</p>
       {error ? <div className="store-alert store-alert-error">{error}</div> : null}
-      <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className="store-field">
-          <label htmlFor="name">Nombre</label>
-          <input
-            id="name"
-            name="name"
-            required
-            maxLength={160}
-            autoComplete="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
+      <form noValidate onSubmit={(event) => void handleSubmit(event)}>
+        <ContactFields
+          values={{ name, phone, document_type: documentType, document_number: documentNumber }}
+          errors={fieldErrors}
+          onChange={(next) => {
+            if (next.name !== undefined) setName(next.name);
+            if (next.phone !== undefined) setPhone(next.phone);
+            if (next.document_type !== undefined) setDocumentType(next.document_type);
+            if (next.document_number !== undefined) setDocumentNumber(next.document_number);
+          }}
+        />
         <div className="store-field">
           <label htmlFor="email">Correo</label>
           <input
@@ -89,73 +115,41 @@ function CustomerRegisterForm() {
             maxLength={254}
             autoComplete="email"
             value={email}
+            aria-invalid={fieldErrors.email ? true : undefined}
             onChange={(event) => setEmail(event.target.value)}
           />
-        </div>
-        <div className="store-field">
-          <label htmlFor="phone">Teléfono</label>
-          <input
-            id="phone"
-            name="phone"
-            required
-            maxLength={30}
-            autoComplete="tel"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-          />
-        </div>
-        <div className="store-field">
-          <label htmlFor="document_type">Tipo documento</label>
-          <select
-            id="document_type"
-            name="document_type"
-            required
-            value={documentType}
-            onChange={(event) => setDocumentType(event.target.value)}
-            aria-label="Tipo documento"
-          >
-            <option value="CC">CC</option>
-            <option value="CE">CE</option>
-            <option value="NIT">NIT</option>
-            <option value="PP">PP</option>
-          </select>
-        </div>
-        <div className="store-field">
-          <label htmlFor="document_number">Número documento</label>
-          <input
-            id="document_number"
-            name="document_number"
-            required
-            maxLength={30}
-            value={documentNumber}
-            onChange={(event) => setDocumentNumber(event.target.value)}
-          />
+          {fieldErrors.email ? <p className="store-field-error" role="alert">{fieldErrors.email}</p> : null}
         </div>
         <div className="store-field">
           <label htmlFor="password">Contraseña</label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             required
-            minLength={8}
-            autoComplete="new-password"
+                        autoComplete="new-password"
             value={password}
+            maxLength={72}
+            aria-invalid={fieldErrors.password ? true : undefined}
             onChange={(event) => setPassword(event.target.value)}
           />
+          <p className="store-hint">Mínimo 8 caracteres, con al menos una letra y un número.</p>
+          {fieldErrors.password ? <p className="store-field-error" role="alert">{fieldErrors.password}</p> : null}
         </div>
         <div className="store-field">
           <label htmlFor="password_confirmation">Confirmar contraseña</label>
-          <input
+          <PasswordInput
             id="password_confirmation"
             name="password_confirmation"
-            type="password"
             required
-            minLength={8}
-            autoComplete="new-password"
+                        autoComplete="new-password"
             value={passwordConfirmation}
+            maxLength={72}
+            aria-invalid={fieldErrors.password_confirmation ? true : undefined}
             onChange={(event) => setPasswordConfirmation(event.target.value)}
           />
+          {fieldErrors.password_confirmation ? (
+            <p className="store-field-error" role="alert">{fieldErrors.password_confirmation}</p>
+          ) : null}
         </div>
         <button type="submit" className="store-btn" disabled={busy}>
           {busy ? "Creando…" : "Crear cuenta"}

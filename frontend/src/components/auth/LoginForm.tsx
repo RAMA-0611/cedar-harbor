@@ -4,6 +4,7 @@ import { ApiClientError } from "@/types/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 function fieldErrorsFromDetails(details: Record<string, unknown>): string[] {
   const errors = details.errors;
@@ -101,10 +102,9 @@ export function LoginForm() {
         <label htmlFor="password" className="block text-sm font-medium text-foreground">
           Contraseña
         </label>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}

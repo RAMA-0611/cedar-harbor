@@ -2,9 +2,10 @@
 
 import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { useAuth } from "@/hooks/useAuth";
-import { createPaymentIntent, getOrder } from "@/lib/api/checkout";
+import { createPaymentIntent, getOrder, getPaymentConfig } from "@/lib/api/checkout";
+import { storeErrorMessage } from "@/lib/api/errors";
 import { formatCop } from "@/lib/productImage";
-import type { PaymentIntent, StoreOrder } from "@/types/store";
+import type { PaymentConfig, PaymentIntent, StoreOrder } from "@/types/store";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -16,6 +17,7 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const [busy, setBusy] = useState(false);
+  const [config, setConfig] = useState<PaymentConfig | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -28,7 +30,10 @@ export default function OrderDetailPage() {
     }
     void getOrder(params.id)
       .then(setOrder)
-      .catch(() => setError("No se pudo cargar el pedido."));
+      .catch((caught) => setError(storeErrorMessage(caught, "No se pudo cargar el pedido.")));
+    void getPaymentConfig()
+      .then(setConfig)
+      .catch(() => setConfig(null));
   }, [authLoading, params.id, router, user]);
 
   useEffect(() => {
@@ -42,11 +47,13 @@ export default function OrderDetailPage() {
     setError(null);
     try {
       const next = await createPaymentIntent(params.id);
+      if (next.provider === "SIMULATED") {
+        router.push(`/pago/simulado/${params.id}`);
+        return;
+      }
       setIntent(next);
-    } catch {
-      setError(
-        "No se pudo iniciar el pago. Verifique credenciales Wompi sandbox en el backend (.env local).",
-      );
+    } catch (caught) {
+      setError(storeErrorMessage(caught, "No se pudo iniciar el pago."));
     } finally {
       setBusy(false);
     }
@@ -79,8 +86,17 @@ export default function OrderDetailPage() {
               disabled={busy}
               onClick={() => void handlePay()}
             >
-              {busy ? "Preparando Wompi…" : "Pagar con Wompi Sandbox"}
+              {busy
+                ? "Preparando pago…"
+                : config?.simulated
+                  ? "Pagar (pasarela simulada)"
+                  : "Pagar con Wompi Sandbox"}
             </button>
+          ) : null}
+          {order.status === "FAILED" ? (
+            <div className="store-alert store-alert-error">
+              El pago no se completó. Las unidades reservadas volvieron al inventario.
+            </div>
           ) : null}
           {order.status === "PAID" ? (
             <div className="store-alert store-alert-ok">Pago confirmado. Stock liquidado una sola vez.</div>

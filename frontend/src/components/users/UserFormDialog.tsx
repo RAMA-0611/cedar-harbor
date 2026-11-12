@@ -4,9 +4,20 @@ import { FormDialog } from "@/components/admin/crud/FormDialog";
 import { helpClassName, inputClassName, labelClassName } from "@/components/admin/crud/fieldStyles";
 import { fieldErrorsFromDetails, mutationErrorMessage } from "@/lib/api/errors";
 import { createUser, getUser, updateUser } from "@/lib/api/users";
+import {
+  DOCUMENT_TYPES,
+  sanitizeDocumentNumber,
+  sanitizePhone,
+  validateDocumentNumber,
+  validateEmail,
+  validateName,
+  validatePassword,
+  validatePhone,
+} from "@/lib/validation";
 import { ApiClientError } from "@/types/api";
 import type { UserRole } from "@/types/auth";
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 type UserFormDialogProps = {
   mode: "create" | "edit";
@@ -20,6 +31,9 @@ type FormState = {
   email: string;
   password: string;
   role: UserRole;
+  phone: string;
+  document_type: string;
+  document_number: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -27,12 +41,14 @@ const EMPTY_FORM: FormState = {
   email: "",
   password: "",
   role: "CUSTOMER",
+  phone: "",
+  document_type: "CC",
+  document_number: "",
 };
 
 export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialogProps) {
   const passwordId = useId();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,6 +68,9 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
             email: user.email,
             password: "",
             role: user.role,
+            phone: "",
+            document_type: "CC",
+            document_number: "",
           });
         }
       })
@@ -76,28 +95,23 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
     const name = form.name.trim();
     const email = form.email.trim();
 
-    if (!name) {
-      errors.name = "El nombre es obligatorio.";
-    } else if (name.length > 255) {
-      errors.name = "El nombre no puede superar 255 caracteres.";
+    const nameError = validateName(name);
+    if (nameError) errors.name = nameError;
+
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
+
+    if (mode === "create" || form.password) {
+      const passwordError = validatePassword(form.password);
+      if (passwordError) errors.password = passwordError;
     }
 
-    if (!email) {
-      errors.email = "El correo electrónico es obligatorio.";
-    } else if (email.length > 255) {
-      errors.email = "El correo electrónico no puede superar 255 caracteres.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = "Ingrese un correo electrónico válido.";
-    }
-
-    if (mode === "create") {
-      if (!form.password) {
-        errors.password = "La contraseña es obligatoria.";
-      } else if (form.password.length < 8) {
-        errors.password = "La contraseña debe tener al menos 8 caracteres.";
-      }
-    } else if (form.password && form.password.length < 8) {
-      errors.password = "La contraseña debe tener al menos 8 caracteres.";
+    const wantsProfile = form.role === "CUSTOMER" && (mode === "create" || form.phone || form.document_number);
+    if (wantsProfile) {
+      const phoneError = validatePhone(form.phone);
+      if (phoneError) errors.phone = phoneError;
+      const docError = validateDocumentNumber(form.document_type, form.document_number);
+      if (docError) errors.document_number = docError;
     }
 
     if (form.role !== "ADMIN" && form.role !== "CUSTOMER") {
@@ -128,6 +142,13 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
           email: form.email.trim(),
           password: form.password,
           role: form.role,
+          ...(form.role === "CUSTOMER"
+            ? {
+                phone: form.phone,
+                document_type: form.document_type,
+                document_number: form.document_number,
+              }
+            : {}),
         });
         onSaved("Usuario creado correctamente.");
       } else if (mode === "edit" && userId !== null) {
@@ -136,6 +157,9 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
           email: string;
           role: UserRole;
           password?: string;
+          phone?: string;
+          document_type?: string;
+          document_number?: string;
         } = {
           name: form.name.trim(),
           email: form.email.trim(),
@@ -143,6 +167,11 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
         };
         if (form.password.trim().length > 0) {
           payload.password = form.password;
+        }
+        if (form.role === "CUSTOMER" && form.phone && form.document_number) {
+          payload.phone = form.phone;
+          payload.document_type = form.document_type;
+          payload.document_number = form.document_number;
         }
         await updateUser(userId, payload);
         onSaved("Usuario actualizado correctamente.");
@@ -186,7 +215,7 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
           name="name"
           type="text"
           required
-          maxLength={255}
+          maxLength={100}
           value={form.name}
           disabled={busy || loadingRecord}
           aria-invalid={Boolean(fieldErrors.name)}
@@ -230,13 +259,12 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
         <label htmlFor={passwordId} className={labelClassName}>
           {mode === "edit" ? "Nueva contraseña" : "Contraseña"}
         </label>
-        <div className="mt-2 flex gap-2">
-          <input
+        <div className="mt-2">
+          <PasswordInput
             id={passwordId}
             name="password"
-            type={showPassword ? "text" : "password"}
             autoComplete="new-password"
-            minLength={mode === "create" ? 8 : undefined}
+            maxLength={72}
             required={mode === "create"}
             value={form.password}
             disabled={busy || loadingRecord}
@@ -249,18 +277,8 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
                   : undefined
             }
             onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-            className={`${inputClassName} mt-0`}
+            className={inputClassName}
           />
-          <button
-            type="button"
-            aria-pressed={showPassword}
-            aria-controls={passwordId}
-            disabled={busy || loadingRecord}
-            onClick={() => setShowPassword((current) => !current)}
-            className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:bg-surface-2 disabled:opacity-60"
-          >
-            {showPassword ? "Ocultar" : "Mostrar"}
-          </button>
         </div>
         {mode === "edit" ? (
           <p id="user-password-help" className={helpClassName}>
@@ -300,6 +318,78 @@ export function UserFormDialog({ mode, userId, onClose, onSaved }: UserFormDialo
           </p>
         ) : null}
       </div>
+
+      {form.role === "CUSTOMER" ? (
+        <>
+          <div>
+            <label htmlFor="user-phone" className={labelClassName}>
+              Teléfono celular
+            </label>
+            <input
+              id="user-phone"
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              placeholder="3001234567"
+              value={form.phone}
+              disabled={busy || loadingRecord}
+              aria-invalid={Boolean(fieldErrors.phone)}
+              onChange={(event) => setForm((current) => ({ ...current, phone: sanitizePhone(event.target.value) }))}
+              className={inputClassName}
+            />
+            <p className={helpClassName}>10 dígitos, solo números, empieza por 3.</p>
+            {fieldErrors.phone ? <p className="mt-1 text-xs text-danger">{fieldErrors.phone}</p> : null}
+          </div>
+          <div>
+            <label htmlFor="user-document-type" className={labelClassName}>
+              Tipo de documento
+            </label>
+            <select
+              id="user-document-type"
+              name="document_type"
+              value={form.document_type}
+              disabled={busy || loadingRecord}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  document_type: event.target.value,
+                  document_number: sanitizeDocumentNumber(current.document_number, event.target.value),
+                }))
+              }
+              className={inputClassName}
+            >
+              {DOCUMENT_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="user-document-number" className={labelClassName}>
+              Número de documento
+            </label>
+            <input
+              id="user-document-number"
+              name="document_number"
+              inputMode={form.document_type === "PP" ? "text" : "numeric"}
+              value={form.document_number}
+              disabled={busy || loadingRecord}
+              aria-invalid={Boolean(fieldErrors.document_number)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  document_number: sanitizeDocumentNumber(event.target.value, current.document_type),
+                }))
+              }
+              className={inputClassName}
+            />
+            {fieldErrors.document_number ? (
+              <p className="mt-1 text-xs text-danger">{fieldErrors.document_number}</p>
+            ) : null}
+          </div>
+        </>
+      ) : null}
 
       {formError ? (
         <p role="alert" className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">

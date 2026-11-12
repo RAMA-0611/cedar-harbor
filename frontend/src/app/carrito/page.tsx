@@ -1,8 +1,10 @@
 "use client";
 
+import { QuantityInput } from "@/components/store/QuantityInput";
 import { StorefrontShell } from "@/components/store/StorefrontShell";
 import { useAuth } from "@/hooks/useAuth";
 import { getCart, removeCartItem, updateCartItem } from "@/lib/api/cart";
+import { storeErrorMessage } from "@/lib/api/errors";
 import { formatCop } from "@/lib/productImage";
 import type { CartView } from "@/types/store";
 import Link from "next/link";
@@ -23,8 +25,8 @@ export default function CartPage() {
     setError(null);
     try {
       setCart(await getCart());
-    } catch {
-      setError("No se pudo cargar el carrito.");
+    } catch (caught) {
+      setError(storeErrorMessage(caught, "No se pudo cargar el carrito."));
     }
   }, [user]);
 
@@ -67,7 +69,7 @@ export default function CartPage() {
             {cart.expires_at ? (
               <p className="store-meta">Reserva vigente hasta {new Date(cart.expires_at).toLocaleString("es-CO")}</p>
             ) : null}
-            <table className="store-table">
+            <table className="store-table store-table-stack">
               <thead>
                 <tr>
                   <th>Producto</th>
@@ -80,32 +82,30 @@ export default function CartPage() {
               <tbody>
                 {cart.items.map((item) => (
                   <tr key={item.id}>
-                    <td>
+                    <td data-label="Producto">
                       <strong>{item.name}</strong>
                       <div className="store-meta">
                         {item.sku} · {formatCop(item.unit_price)}
                       </div>
                     </td>
-                    <td>
-                      <input
-                        aria-label={`Cantidad ${item.name}`}
-                        type="number"
-                        min={1}
+                    <td data-label="Cantidad">
+                      <QuantityInput
+                        label={`Cantidad ${item.name}`}
                         value={item.quantity}
+                        max={Math.max(1, item.available_quantity)}
                         disabled={busy}
-                        style={{ width: "4.5rem" }}
-                        onChange={(event) => {
-                          const next = Math.max(1, Number(event.target.value) || 1);
+                        onCommit={(next) => {
                           setBusy(true);
+                          setError(null);
                           void updateCartItem(item.id, next)
                             .then(setCart)
-                            .catch(() => setError("No se pudo actualizar la cantidad."))
+                            .catch((caught) => setError(storeErrorMessage(caught, "No se pudo actualizar la cantidad.")))
                             .finally(() => setBusy(false));
                         }}
                       />
                     </td>
-                    <td>{item.available_quantity}</td>
-                    <td>{formatCop(item.line_total)}</td>
+                    <td data-label="Disponible">{item.available_quantity}</td>
+                    <td data-label="Total línea">{formatCop(item.line_total)}</td>
                     <td>
                       <button
                         type="button"
@@ -115,8 +115,9 @@ export default function CartPage() {
                         onClick={() => {
                           setBusy(true);
                           void removeCartItem(item.id)
+                            .then(() => getCart())
                             .then(setCart)
-                            .catch(() => setError("No se pudo eliminar el ítem."))
+                            .catch((caught) => setError(storeErrorMessage(caught, "No se pudo eliminar el ítem.")))
                             .finally(() => setBusy(false));
                         }}
                       >

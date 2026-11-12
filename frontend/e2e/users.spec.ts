@@ -13,8 +13,8 @@ test("users CRUD and self-delete protection", async ({ page }) => {
   ).toBeDisabled();
 
   const stamp = uniqueStamp();
-  const name = `Usuario E2E ${stamp}`;
-  const edited = `${name} editado`;
+  const name = "Usuario Pruebas";
+  const edited = "Usuario Pruebas Editado";
   const email = uniqueEmail("user.e2e");
   const password = `Pw${stamp}xx`;
 
@@ -24,6 +24,9 @@ test("users CRUD and self-delete protection", async ({ page }) => {
   await form.locator("#user-email").fill(email);
   await form.locator('input[name="password"]').fill(password);
   await form.locator("#user-role").selectOption("CUSTOMER");
+  await form.locator("#user-phone").fill("3001112233");
+  await form.locator("#user-document-type").selectOption("CE");
+  await form.locator("#user-document-number").fill("1234567");
   await form.getByRole("button", { name: "Crear usuario" }).click();
   await expect(page.getByRole("status")).toHaveText("Usuario creado correctamente.");
   await expect(page.getByRole("table")).toContainText(email);

@@ -83,7 +83,10 @@ export function CategoryFormDialog({
     if (!name) {
       errors.name = "El nombre es obligatorio.";
     } else if (name.length > 160) {
-      errors.name = "El nombre no puede superar 160 caracteres.";
+      errors.name = "El nombre no puede superar 160 caracteres.";    } else if (name.length < 2) {
+      errors.name = "El nombre debe tener al menos 2 caracteres.";
+    } else if (/[<>]/.test(name)) {
+      errors.name = "El nombre no puede contener los símbolos < ni >.";
     }
 
     if (!slug) {

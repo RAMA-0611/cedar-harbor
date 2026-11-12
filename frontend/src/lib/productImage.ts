@@ -33,3 +33,15 @@ export function formatCop(amount: string): string {
     maximumFractionDigits: 0,
   }).format(n);
 }
+
+export const FALLBACK_IMAGE = PLACEHOLDERS.default;
+
+/** onError para <img>: si la imagen no carga, muestra el marcador por defecto (una sola vez). */
+export function handleImageError(event: { currentTarget: HTMLImageElement }): void {
+  const img = event.currentTarget;
+  if (img.dataset.fallbackApplied === "1") {
+    return;
+  }
+  img.dataset.fallbackApplied = "1";
+  img.src = FALLBACK_IMAGE;
+}

@@ -41,8 +41,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">ByteBlade</p>
-        <h1 className="mt-3 text-2xl font-semibold text-foreground">Proyecto Rotor</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-byteblade-blanco.png" alt="ByteBlade" width={180} height={50} className="h-12 w-auto" />
+        <h1 className="mt-5 text-2xl font-semibold text-foreground">Proyecto Rotor</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
           Acceso al panel administrativo. Use una cuenta con rol ADMIN.
         </p>

@@ -32,7 +32,7 @@ test("customer create plus admin order lifecycle", async ({ page, request }) => 
 
   await row.getByRole("button", { name: "Editar" }).click();
   const edit = page.getByRole("dialog", { name: "Editar pedido" });
-  await edit.locator("#order-customer-phone").fill("+579000000099");
+  await edit.locator("#order-customer-phone").fill("3009000099");
   await edit.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByRole("status")).toHaveText("Pedido actualizado correctamente.");
 

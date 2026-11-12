@@ -1,5 +1,12 @@
-import { apiMutation, apiRequest } from "@/lib/api/client";
-import type { CheckoutPayload, PaymentIntent, StoreOrder } from "@/types/store";
+import { apiGet, apiMutation, apiRequest } from "@/lib/api/client";
+import type {
+  CheckoutPayload,
+  PaymentConfig,
+  PaymentIntent,
+  SimulatedCardInput,
+  SimulatedPaymentResult,
+  StoreOrder,
+} from "@/types/store";
 
 export async function validateCheckout(payload: CheckoutPayload): Promise<unknown> {
   return apiMutation("/api/checkout/validate", "POST", payload);
@@ -34,4 +41,26 @@ export async function reconcileOrder(
   return apiMutation(`/api/orders/${orderId}/reconcile`, "POST", {
     transaction_id: transactionId ?? null,
   });
+}
+
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  return apiGet<PaymentConfig>("/api/payments/config", { cache: "no-store" });
+}
+
+export async function paySimulated(
+  orderId: string,
+  card: SimulatedCardInput,
+): Promise<SimulatedPaymentResult> {
+  return apiMutation<SimulatedPaymentResult>(`/api/orders/${orderId}/simulated-payment`, "POST", card);
+}
+
+export async function completeSimulated(
+  orderId: string,
+  decision: "APPROVED" | "DECLINED",
+): Promise<SimulatedPaymentResult> {
+  return apiMutation<SimulatedPaymentResult>(
+    `/api/orders/${orderId}/simulated-payment/complete`,
+    "POST",
+    { decision },
+  );
 }

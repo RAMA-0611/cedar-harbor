@@ -7,11 +7,11 @@ test("guest can self-register as CUSTOMER and open cart", async ({ page }) => {
   await page.goto("/cliente/registro?next=/carrito");
   await expect(page.getByRole("heading", { name: "Crear cuenta" })).toBeVisible();
 
-  await page.locator("#name").fill(`Cliente Reg ${suffix}`);
+  await page.locator("#name").fill("Cliente Registro");
   await page.locator("#email").fill(email);
   await page.locator("#phone").fill("3009876543");
   await page.locator("#document_type").selectOption("CC");
-  await page.locator("#document_number").fill(`10${suffix}`.slice(0, 30));
+  await page.locator("#document_number").fill(String(Date.now()).slice(-9));
   await page.locator("#password").fill("password123");
   await page.locator("#password_confirmation").fill("password123");
   await page.getByRole("button", { name: "Crear cuenta" }).click();
