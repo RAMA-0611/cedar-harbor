@@ -5,7 +5,7 @@
 #   tag v*       -> igual, y las imágenes quedan etiquetadas con la versión (v0.4.0)
 #   manual       -> "image_tag": vuelve a desplegar una versión anterior (rollback) sin reconstruir pruebas ni imágenes
 #
-# Si cualquier prueba falla, los trabajos "build" y "deploy" NO se ejecutan (needs + condición).
+# Si cualquier prueba falla (backend, frontend, compose o E2E), los trabajos "build" y "deploy" NO se ejecutan.
 
 name: ci-cd
 
@@ -125,10 +125,9 @@ jobs:
           echo "Sin archivos .env/llaves en el historial."
 
   e2e:
-    name: E2E con navegador (informativo)
+    name: E2E con navegador
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
-    continue-on-error: true   # no bloquea el despliegue; deja evidencia en el historial
     services:
       postgres:
         image: postgres:16-alpine
@@ -162,6 +161,11 @@ jobs:
           sed -i "s#^E2E_ADMIN_PASSWORD=.*#E2E_ADMIN_PASSWORD=$(openssl rand -hex 8)Aa1#" .env.e2e
           sed -i "s#^E2E_CUSTOMER_PASSWORD=.*#E2E_CUSTOMER_PASSWORD=$(openssl rand -hex 8)Aa1#" .env.e2e
           echo "PAYMENT_PROVIDER=simulated" >> .env.e2e
+          echo "E2E env keys (no secrets):"
+          grep -E '^(APP_ENV|DB_CONNECTION|DB_DATABASE)=' .env.e2e
+          test "$(grep -E '^APP_ENV=' .env.e2e)" = "APP_ENV=e2e"
+          test "$(grep -E '^DB_CONNECTION=' .env.e2e)" = "DB_CONNECTION=pgsql"
+          test "$(grep -E '^DB_DATABASE=' .env.e2e)" = "DB_DATABASE=rotor_e2e"
       - working-directory: frontend
         run: |
           npm ci --no-audit --no-fund
@@ -171,7 +175,7 @@ jobs:
   # ─────────────────── Construcción y publicación de imágenes ───────────────────
   build:
     name: Construir y publicar imágenes (${{ matrix.service }})
-    needs: [test-backend, test-frontend, validate-compose]
+    needs: [test-backend, test-frontend, validate-compose, e2e]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
