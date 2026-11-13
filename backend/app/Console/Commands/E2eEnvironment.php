@@ -17,11 +17,15 @@ final class E2eEnvironment
 
         Dotenv::createMutable(base_path(), '.env.e2e')->load();
 
-        $connection = (string) config('database.default', 'pgsql');
+        // Use DB_CONNECTION from .env.e2e — not config('database.default'), which may still
+        // be the app bootstrap default (sqlite in CI when no backend/.env exists).
+        $connection = (string) env('DB_CONNECTION', 'pgsql');
+
         config([
             'app.env' => env('APP_ENV'),
             'app.debug' => filter_var(env('APP_DEBUG'), FILTER_VALIDATE_BOOL),
             'app.url' => env('APP_URL'),
+            'database.default' => $connection,
             "database.connections.{$connection}.host" => env('DB_HOST', '127.0.0.1'),
             "database.connections.{$connection}.port" => env('DB_PORT', '5432'),
             "database.connections.{$connection}.database" => env('DB_DATABASE'),

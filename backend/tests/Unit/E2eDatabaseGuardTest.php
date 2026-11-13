@@ -34,6 +34,14 @@ class E2eDatabaseGuardTest extends PhpUnitTestCase
         E2eDatabaseGuard::assert('e2e', 'rotor_testing', 'rotor_testing');
     }
 
+    public function test_refuses_sqlite_label(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(E2eDatabaseGuard::REFUSAL_MESSAGE);
+
+        E2eDatabaseGuard::assert('e2e', 'sqlite', 'sqlite');
+    }
+
     public function test_refuses_non_e2e_environment(): void
     {
         $this->expectException(RuntimeException::class);
