@@ -10,6 +10,19 @@ final class E2eEnvironment
 {
     public static function load(): void
     {
+        self::applyFromEnvFile();
+
+        $connection = (string) config('database.default');
+        DB::purge($connection);
+        DB::reconnect($connection);
+    }
+
+    /**
+     * Load backend/.env.e2e into the process and apply connection config.
+     * Does not open a DB connection (safe for unit tests / CI without rotor_e2e).
+     */
+    public static function applyFromEnvFile(): void
+    {
         $file = base_path('.env.e2e');
         if (! is_file($file)) {
             throw new RuntimeException('Missing backend/.env.e2e (local, gitignored).');
@@ -32,8 +45,5 @@ final class E2eEnvironment
             "database.connections.{$connection}.username" => env('DB_USERNAME'),
             "database.connections.{$connection}.password" => env('DB_PASSWORD'),
         ]);
-
-        DB::purge($connection);
-        DB::reconnect($connection);
     }
 }
