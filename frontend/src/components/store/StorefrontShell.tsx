@@ -18,8 +18,8 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
             <span className="store-brand-name">Proyecto Rotor</span>
           </Link>
           <nav className="store-nav" aria-label="Navegación tienda">
-            <Link href="/">Catálogo15</Link>
-            <Link href="/carrito">Carrito112</Link>
+            <Link href="/">Catálogo</Link>
+            <Link href="/carrito">Carrito</Link>
             {user?.role === "CUSTOMER" ? (
               <>
                 <span className="store-nav-user">{user.email}</span>
@@ -40,7 +40,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
       <footer className="store-footer">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-byteblade-blanco.png" alt="" width={110} height={30} className="store-footer-logo" />
-        <p>Proyecto Rotor · Demo académica · Sandbox · Sin dinero real</p>
+        <p>Proyecto Rotor</p>
       </footer>
     </div>
   );
