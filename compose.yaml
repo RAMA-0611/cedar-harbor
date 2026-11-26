@@ -73,6 +73,8 @@ services:
       WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY:-}
       WOMPI_INTEGRITY_SECRET: ${WOMPI_INTEGRITY_SECRET:-}
       WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-}
+      # Retorno Web Checkout (HTTPS público). Vacío = Wompi no recibe redirect-url.
+      WOMPI_REDIRECT_URL: ${WOMPI_REDIRECT_URL:-}
       SEED_DEMO: ${SEED_DEMO:-true}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rotor.test}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
