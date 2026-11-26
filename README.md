@@ -1,4 +1,4 @@
-https://srv2153504.hstgr.cloud
+https://byteblade.tech
 
 # Proyecto Rotor
 
@@ -750,7 +750,7 @@ See [LICENSE](./LICENSE) for the complete terms. **All Rights Reserved.**
 Esta sección continúa el registro del proyecto: todo lo anterior se conserva como historia de las entregas 2 y 3 y del MVP
 v0.5.0 documentado arriba. Aquí se anotan los cambios y arreglos hechos para la Entrega 4.
 
-**Aplicación en línea:** https://srv2153504.hstgr.cloud · **Panel:** https://srv2153504.hstgr.cloud/login
+**Aplicación en línea:** https://byteblade.tech · **Panel:** https://byteblade.tech/login
 
 ### Guías de esta versión
 
@@ -805,7 +805,8 @@ instalación de Docker en un computador nuevo, en [`docs/INSTALACION.md`](docs/I
 - Dockerfile multietapa, `compose.yaml` con cinco servicios y healthchecks, volúmenes persistentes y `.dockerignore`.
 - Caddy como único punto de entrada con HTTPS automático (Let's Encrypt).
 - Primer arranque automático: migraciones, catálogo de demostración y primer administrador.
-- Servidor VPS Ubuntu 24.04 en Hostinger con la aplicación publicada en https://srv2153504.hstgr.cloud.
+- Servidor VPS Ubuntu 24.04 en Hostinger. La aplicación se publicó primero en el nombre de host del VPS
+  (`srv2153504.hstgr.cloud`) y desde el 25 de noviembre funciona en el dominio propio https://byteblade.tech.
 - Flujo CI/CD en `.github/workflows/ci-cd.yaml`: pruebas → imágenes en GHCR → despliegue por SSH → verificación; si una prueba
   falla no se construye ni se despliega; reversión manual por etiqueta de imagen.
 
@@ -822,7 +823,32 @@ instalación de Docker en un computador nuevo, en [`docs/INSTALACION.md`](docs/I
 | Diseño adaptable (Android, tableta, escritorio) e identidad ByteBlade | Implementado, con prueba automática |
 | Contraseña con ojo | Implementado |
 | Contenedores, healthchecks y volúmenes | Implementado |
-| Despliegue público con HTTPS | En línea: https://srv2153504.hstgr.cloud |
+| Despliegue público con HTTPS | En línea: https://byteblade.tech |
 | CI/CD con GHCR y despliegue por SSH | Implementado; configuración de secretos en GitHub según `docs/DESPLIEGUE-HOSTINGER.md` |
 | Informe de Lighthouse sobre la URL pública | Medido antes y después: catálogo 99 / 100 / 100 y registro 100 / 100 / 100 (rendimiento / accesibilidad / buenas prácticas) |
 | Pendiente para la Entrega 5 | Renderizado del catálogo en el servidor para bajar el LCP y reducción de JavaScript sin usar |
+
+### Actualización del 25 de noviembre: dominio propio byteblade.tech
+
+Después de la entrega pasamos la aplicación del nombre de host del VPS al dominio del equipo. Desde esta fecha la
+dirección oficial es **https://byteblade.tech** (panel en https://byteblade.tech/login).
+
+**Cambios**
+
+| Cambio | Dónde | Para qué |
+|---|---|---|
+| Dominio `byteblade.tech` apuntando al VPS (registro DNS tipo A) y certificado HTTPS emitido por Caddy | DNS de Hostinger y `.env` del servidor | Dirección pública propia |
+| Nueva variable `SESSION_DOMAIN` | `compose.yaml`, `.env.example` (PR #55) | La cookie de sesión queda ligada al dominio público |
+| Nueva variable `WOMPI_REDIRECT_URL` pasada al contenedor de la API | `compose.yaml`, `.env.example` (PR #55) | Wompi devuelve al cliente a `https://byteblade.tech/pago/resultado` después de pagar |
+| Pruebas de navegador como condición para desplegar | `.github/workflows/ci-cd.yaml` (PR #52, etiqueta `v0.6.1`) | Si fallan, no se construye ni se despliega |
+| Menú y pie de la tienda corregidos | `frontend/src/components/store/StorefrontShell.tsx` (PR #56) | Quedaron textos de prueba de la demo de despliegue |
+| Guías y README con el dominio nuevo | `README.md`, `docs/` | Que la instalación desde cero use la configuración actual |
+
+**Importante:** el inicio de sesión (tienda y panel) solo funciona desde `https://byteblade.tech`. La dirección anterior
+`srv2153504.hstgr.cloud` todavía muestra páginas, pero al enviar el formulario de ingreso la API responde error 500,
+porque la sesión está configurada para el dominio nuevo. Use siempre `byteblade.tech`.
+
+**Etiquetas:** `v0.6.0` corresponde a la Entrega 4 y `v0.6.1` agrega la compuerta de pruebas de navegador.
+
+Las mediciones de Lighthouse de `docs/informe-rendimiento.md` se hicieron el 12 de noviembre sobre la dirección anterior;
+el código y el servidor son los mismos, solo cambió el nombre del dominio.
