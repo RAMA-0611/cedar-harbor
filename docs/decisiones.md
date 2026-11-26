@@ -192,3 +192,13 @@ transaccional. El detalle técnico está en `docs/architecture/DATA_MODEL.md`
   `^3[0-9]{9}$`; tipo de documento como **lista cerrada** (CC, CE, NIT, PP) con formato del número según el tipo; nombre
   solo letras; contraseña 8–72 con letra y número; cantidades enteras de 1 al stock disponible. Los campos numéricos
   filtran caracteres inválidos al escribir o pegar. El backend es la autoridad.
+
+## ADR-E4-008 — Dominio propio y sesión ligada al dominio
+
+- **Contexto.** La Entrega 4 se publicó en el nombre de host del VPS (`srv2153504.hstgr.cloud`), que funcionaba de
+  inmediato mientras el dominio del equipo se propagaba.
+- **Decisión.** Desde el 25 de noviembre la dirección oficial es `https://byteblade.tech`. Se agregaron las variables
+  `SESSION_DOMAIN` (dominio de la cookie de sesión) y `WOMPI_REDIRECT_URL` (regreso del cliente después de pagar en
+  Wompi), que `compose.yaml` ahora pasa al contenedor de la API.
+- **Consecuencias.** El inicio de sesión solo funciona desde el dominio configurado; la dirección anterior muestra páginas
+  pero no permite ingresar. Cambiar de dominio exige actualizar `.env`, `PUBLIC_URL`, el README y las guías.

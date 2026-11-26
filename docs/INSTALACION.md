@@ -13,7 +13,8 @@ no hace falta instalar PHP, Node ni PostgreSQL. Cada comando se copia y pega tal
 6. [Referencia: servicios, variables y pagos de prueba](#6-referencia-servicios-variables-y-pagos-de-prueba)
 7. [Problemas frecuentes](#7-problemas-frecuentes)
 
-Para publicar la aplicación en internet con HTTPS, siga [`DESPLIEGUE-HOSTINGER.md`](DESPLIEGUE-HOSTINGER.md).
+Para publicar la aplicación en internet con HTTPS, siga [`DESPLIEGUE-HOSTINGER.md`](DESPLIEGUE-HOSTINGER.md). La versión
+publicada del equipo está en https://byteblade.tech.
 
 ---
 
@@ -206,12 +207,14 @@ Plantilla completa en [`.env.example`](../.env.example). **Nunca** versione `.en
 | `APP_URL` | Sí | `https://` + dominio |
 | `SANCTUM_STATEFUL_DOMAINS` | Sí | El dominio sin `https://` (necesario para la sesión por cookie) |
 | `SESSION_SECURE_COOKIE` | Sí | `true` con HTTPS |
+| `SESSION_DOMAIN` | No | Vacío liga la cookie al dominio exacto; `.byteblade.tech` la comparte con `www` |
 | `APP_KEY` | Sí | `base64:` + `openssl rand -base64 32` |
 | `POSTGRES_PASSWORD` | Sí | Contraseña de la base de datos |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Sí | Primer administrador |
 | `HTTP_PORT` / `HTTPS_PORT` | No | Puertos del host (por defecto 8080 / 8443; en un servidor público, 80 / 443) |
 | `PAYMENT_PROVIDER` | No | `simulated` (por defecto) o `wompi` |
 | `WOMPI_*` | Solo con `wompi` | Llaves sandbox de Wompi |
+| `WOMPI_REDIRECT_URL` | Con `wompi` en un servidor | Página a la que Wompi devuelve al cliente: `https://byteblade.tech/pago/resultado`. Vacía en local |
 
 ### Pasarela de pago simulada
 

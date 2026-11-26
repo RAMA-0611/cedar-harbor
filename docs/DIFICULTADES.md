@@ -50,6 +50,8 @@ Sirve como memoria del equipo y como guía de diagnóstico para quien repita el 
 | 3.5 | Al pegar el bloque que crea el `.env`, la terminal mostró el texto mezclado y parecía que había fallado | La terminal intercala lo escrito con lo mostrado | Verificar el archivo con `grep -v -E "PASSWORD\|APP_KEY" .env` en lugar de fiarse de la pantalla |
 | 3.6 | El flujo de CI/CD exige `APP_KEY` en el `.env` del servidor, y la primera instalación la generaba dentro del volumen | `compose.prod.yaml` declara `APP_KEY` como obligatoria | La guía de despliegue crea `APP_KEY` desde el primer `.env` |
 | 3.7 | Los *secrets* de GitHub solo pueden crearlos los administradores del repositorio | Permisos de GitHub | El integrante de DevOps y calidad (administrador del repositorio) los configura; el resto verifica en *Actions* |
+| 3.8 | Después de pasar al dominio `byteblade.tech`, el ingreso por la dirección vieja (`srv2153504.hstgr.cloud`) mostraba «El servidor no está disponible en este momento» | La sesión quedó configurada para el dominio nuevo; las páginas cargaban (GET 200) pero el envío del formulario de ingreso (POST) respondía 500 | Entrar siempre por `https://byteblade.tech`. Se documentó en el README y en `DESPLIEGUE-HOSTINGER.md` (paso 7.1) |
+| 3.9 | No se recordaba la contraseña del administrador en el servidor | Se había cambiado desde el panel | Restablecerla con `docker exec rotor-app-1 php artisan rotor:create-admin admin@rotor.test 'ClaveNueva'` |
 
 ## 4. Rendimiento
 
@@ -57,7 +59,7 @@ Sirve como memoria del equipo y como guía de diagnóstico para quien repita el 
 |---|---|---|
 | 4.1 | En Lighthouse local (móvil) el catálogo pasó de 93 a 95 en rendimiento, de 96 a 100 en buenas prácticas y su desplazamiento de diseño (CLS) de 0.091 a 0 | Resuelto (reserva de espacio del catálogo) |
 | 4.2 | La página de registro bajó de 98 a 94 en rendimiento entre mediciones sin una causa identificada | Abierto; se repite la medición sobre la URL pública y se documenta en `informe-rendimiento.md` |
-| 4.3 | Las mediciones locales no sirven como evidencia final: la entrega exige medir la URL pública | Pendiente de repetir sobre `https://srv2153504.hstgr.cloud` |
+| 4.3 | Las mediciones locales no sirven como evidencia final: la entrega exige medir la URL pública | Resuelto: se midió el 12 de noviembre sobre la URL pública (sección 7 del informe) |
 
 ## 5. Lecciones aprendidas
 
@@ -65,7 +67,8 @@ Sirve como memoria del equipo y como guía de diagnóstico para quien repita el 
 2. Los textos entre `<` y `>` de una guía son marcadores: se reemplazan completos, incluidos los signos.
 3. Nunca pegar, fotografiar ni publicar contraseñas, claves SSH ni tokens; si alguno se expone, se regenera de inmediato.
 4. Verificar cada archivo de configuración con un comando que no muestre secretos antes de arrancar.
-5. Un dominio nuevo tarda en propagarse: tener lista una alternativa inmediata (el nombre de host del proveedor).
+5. Un dominio nuevo tarda en propagarse: tener lista una alternativa inmediata (el nombre de host del proveedor). Al cambiar
+   de dominio, actualizar en el mismo momento el `.env`, la variable `PUBLIC_URL`, el README y las guías.
 6. Probar en pantalla de teléfono desde el inicio: es donde aparecen los desbordes de diseño.
 7. Mantener pruebas automáticas por cada regla de validación evita regresiones al rediseñar.
 8. Medir rendimiento sobre la URL pública y repetir la medición después de cada cambio visual.

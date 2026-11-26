@@ -3,7 +3,8 @@
 Guía paso a paso, con todos los comandos, para publicar **Proyecto Rotor** en internet con candado HTTPS y dejar el
 despliegue automático. Aplica a un VPS **Ubuntu 24.04** de Hostinger (plan KVM 1) y sirve igual en otro proveedor con Ubuntu.
 
-Aplicación publicada: **https://srv2153504.hstgr.cloud**
+Aplicación publicada: **https://byteblade.tech** (desde el 25 de noviembre de 2026; antes se usó el nombre de host del VPS,
+`srv2153504.hstgr.cloud`)
 
 **Contenido**
 
@@ -38,18 +39,22 @@ Aplicación publicada: **https://srv2153504.hstgr.cloud**
 
 ## 2. Dominio
 
-Hay dos opciones:
+El proyecto usa el dominio propio **`byteblade.tech`**:
 
-- **Nombre de host del proveedor (inmediato):** en Hostinger es `srvNNNNNNN.hstgr.cloud` y ya apunta a la IP del VPS.
-- **Dominio propio:** el plan incluye un dominio gratis el primer año (*Dominios → Reclamar dominio*). Después, en
-  *Administrador de DNS*, cree un registro **A** con nombre `@` y valor igual a la IP del VPS. Verifique el correo de
-  confirmación del registrador antes de la fecha límite o el dominio se suspende.
+1. El plan del VPS incluye un dominio gratis el primer año: *Dominios → Reclamar dominio*.
+2. Verifique el correo de confirmación que envía el registrador antes de la fecha límite, o el dominio se suspende.
+3. En *Dominios → byteblade.tech → Administrador de DNS*, deje un registro **A** con nombre `@` y valor igual a la IP del
+   VPS. Si también quiere `www`, cree otro registro **A** con nombre `www` y la misma IP.
 
-Compruebe desde su computador que el nombre resuelve a la IP (reemplace por el suyo):
+Compruebe desde su computador que el dominio resuelve a la IP:
 
 ```powershell
-nslookup srv2153504.hstgr.cloud 8.8.8.8
+nslookup byteblade.tech 8.8.8.8
 ```
+
+Mientras un dominio nuevo se propaga se puede usar el nombre de host que Hostinger asigna al VPS
+(`srvNNNNNNN.hstgr.cloud`), que apunta a la IP desde el primer momento. Si después cambia al dominio propio, siga el
+paso 7.1.
 
 Debe aparecer la IP del VPS. Un dominio recién registrado puede tardar entre 5 y 30 minutos en aparecer.
 
@@ -100,12 +105,12 @@ Alternativa sin GitHub: desde su computador copie el `.zip` con
 
 ## 6. Crear el archivo `.env`
 
-Este archivo guarda las contraseñas del servidor y **nunca se sube a GitHub**. Reemplace `DOMINIO` por su dominio sin
-`https://` (por ejemplo `srv2153504.hstgr.cloud`) y pegue el bloque completo:
+Este archivo guarda las contraseñas del servidor y **nunca se sube a GitHub**. `DOM` es el dominio sin `https://`
+(en este proyecto, `byteblade.tech`). Pegue el bloque completo:
 
 ```bash
 cd /opt/rotor
-DOM=DOMINIO
+DOM=byteblade.tech
 ADMINPW="Rt$(openssl rand -hex 8)9"
 cat > .env <<EOF
 SITE_ADDRESS=$DOM
@@ -115,6 +120,7 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://$DOM
 SANCTUM_STATEFUL_DOMAINS=$DOM
+SESSION_DOMAIN=
 SESSION_SECURE_COOKIE=true
 APP_KEY=base64:$(openssl rand -base64 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -122,6 +128,7 @@ ADMIN_EMAIL=admin@rotor.test
 ADMIN_PASSWORD=$ADMINPW
 SEED_DEMO=true
 PAYMENT_PROVIDER=simulated
+WOMPI_REDIRECT_URL=https://$DOM/pago/resultado
 EOF
 chmod 600 .env
 echo "Contraseña del administrador: $ADMINPW"
@@ -133,7 +140,12 @@ echo "Contraseña del administrador: $ADMINPW"
 grep -v -E "PASSWORD|APP_KEY" .env
 ```
 
-Debe listar 10 líneas (dominio, puertos, entorno, URL, cookies, correo del administrador, demo y pasarela).
+Debe listar 12 líneas (dominio, puertos, entorno, URL, cookies, dominio de la sesión, correo del administrador, demo,
+pasarela y regreso de Wompi).
+
+`SESSION_DOMAIN` vacío liga la cookie al dominio exacto, que es lo correcto con un solo dominio. Si se publica también
+`www`, use `SITE_ADDRESS=byteblade.tech, www.byteblade.tech`, `SANCTUM_STATEFUL_DOMAINS=byteblade.tech,www.byteblade.tech`
+y `SESSION_DOMAIN=.byteblade.tech` (con el punto inicial), para que la sesión sirva en ambos.
 
 ---
 
@@ -146,17 +158,42 @@ docker compose ps
 ```
 
 La primera construcción tarda entre 3 y 10 minutos. Cuando los cinco servicios (`proxy`, `app`, `web`, `db`, `cache`) estén
-`healthy`, abra **https://SU-DOMINIO** en el navegador: debe cargar el catálogo con el **candado** de HTTPS. Si la primera
+`healthy`, abra **https://byteblade.tech** en el navegador: debe cargar el catálogo con el **candado** de HTTPS. Si la primera
 vez falla, espere 30 segundos y recargue (Caddy está pidiendo el certificado).
 
-Entre a **https://SU-DOMINIO/login** con `admin@rotor.test` y la contraseña del paso 6. Verifique desde el servidor:
+Entre a **https://byteblade.tech/login** con `admin@rotor.test` y la contraseña del paso 6. Verifique desde el servidor:
 
 ```bash
-curl -I http://SU-DOMINIO          # responde 308 hacia https://
-curl -s https://SU-DOMINIO/up      # estado de la aplicación
+curl -I http://byteblade.tech          # responde 308 hacia https://
+curl -s https://byteblade.tech/up      # estado de la aplicación
 ```
 
 Haga una compra de prueba con la tarjeta `4242 4242 4242 4242` y confirme que el pedido queda `PAID`.
+
+### 7.1 Cambiar de dominio (lo que se hizo el 25 de noviembre)
+
+El inicio de sesión solo funciona desde el dominio que está en el `.env`. Si se cambia de dominio, actualice estas
+variables en `/opt/rotor/.env` (por ejemplo con `nano /opt/rotor/.env`):
+
+```bash
+SITE_ADDRESS=byteblade.tech
+APP_URL=https://byteblade.tech
+SANCTUM_STATEFUL_DOMAINS=byteblade.tech
+WOMPI_REDIRECT_URL=https://byteblade.tech/pago/resultado
+```
+
+Luego recree los contenedores para que lean el archivo (Caddy pide el certificado nuevo solo):
+
+```bash
+cd /opt/rotor
+docker compose --env-file .env --env-file .deploy.env -f compose.yaml -f compose.prod.yaml up -d
+```
+
+(Si el servidor todavía no lo maneja el CI/CD, basta `docker compose up -d`.) Por último, cambie la variable
+`PUBLIC_URL` en GitHub (paso 9.3) y la primera línea del README.
+
+Con el dominio viejo las páginas pueden seguir cargando, pero el ingreso falla con «El servidor no está disponible en este
+momento» (error 500 de la API), porque la sesión ya no corresponde a ese dominio.
 
 ---
 
@@ -211,7 +248,7 @@ En el repositorio: *Settings → Secrets and variables → Actions*.
 | Secret | `DEPLOY_SSH_KEY` | la clave privada del paso 9.1 |
 | Secret | `DEPLOY_PATH` | `/opt/rotor` |
 | Secret | `GHCR_PULL_TOKEN` | el token del paso 9.2 (o vacío si los paquetes son públicos) |
-| Variable | `PUBLIC_URL` | `https://SU-DOMINIO` |
+| Variable | `PUBLIC_URL` | `https://byteblade.tech` |
 
 Luego *Settings → Environments → New environment* con el nombre exacto **`production`**.
 
@@ -272,7 +309,7 @@ Actualizar sin CI/CD: `cd /opt/rotor && git pull && docker compose up -d --build
 |---|---|---|
 | 1 | Arranque con un solo comando | `docker compose up -d --build` en una carpeta limpia |
 | 2 | URL pública | Abrir la URL desde el celular con datos móviles (sin el Wi-Fi de casa) |
-| 3 | HTTPS válido | Candado en el navegador; `curl -I https://SU-DOMINIO` responde `200` |
+| 3 | HTTPS válido | Candado en el navegador; `curl -I https://byteblade.tech` responde `200` |
 | 4 | Datos persistentes | Crear un producto, ejecutar `docker compose restart`, el producto sigue ahí |
 | 5 | Secretos externalizados | `.env` solo en el servidor; `git log --all -- .env` no devuelve nada |
 | 6 | Despliegue automático | Un *push* a `main` termina en verde y la web muestra el cambio |
@@ -300,7 +337,9 @@ git log --all --diff-filter=A --name-only --format= | grep -E "(^|/)\.env(\.[A-Z
 |---|---|
 | `Permission denied` al entrar por SSH | Contraseña de root incorrecta: use *Restablecer contraseña* en el panel del VPS |
 | La URL no carga o no hay candado | Espere 1 minuto; verifique con `nslookup` que el dominio apunta a la IP, que `ufw status` permite 80 y 443 y revise `docker compose logs proxy --tail 30` |
-| La sesión no se mantiene (vuelve al login) | `APP_URL`, `SANCTUM_STATEFUL_DOMAINS` o `SESSION_SECURE_COOKIE` no coinciden con el dominio y HTTPS. Corrija `.env` y ejecute `docker compose up -d` |
+| La sesión no se mantiene (vuelve al login) | `APP_URL`, `SANCTUM_STATEFUL_DOMAINS` o `SESSION_SECURE_COOKIE` no coinciden con el dominio y HTTPS. Corrija `.env` y recree los contenedores (paso 7.1) |
+| Al iniciar sesión sale «El servidor no está disponible en este momento» | Está entrando por un dominio distinto al configurado (por ejemplo el nombre de host del VPS). Use `https://byteblade.tech` |
+| Ingresé al panel pero olvidé la contraseña del administrador | En el servidor: `docker exec rotor-app-1 php artisan rotor:create-admin admin@rotor.test 'ClaveNueva2026'` |
 | El despliegue dice *Falta .env en el servidor* | Cree `/opt/rotor/.env` (paso 6) |
 | El despliegue dice `pull access denied` | Los paquetes de GHCR son privados y falta `GHCR_PULL_TOKEN`, o el token caducó |
 | El despliegue falla por `APP_KEY` o `POSTGRES_PASSWORD` | Falta esa variable en el `.env` del servidor (paso 6) |

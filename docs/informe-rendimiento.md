@@ -81,8 +81,8 @@ Archivos: `docs/lighthouse/despues-catalogo.json`, `docs/lighthouse/despues-regi
 ## 6. Cómo repetir las mediciones sobre la URL pública (obligatorio para la entrega)
 
 ```bash
-npx lighthouse https://srv2153504.hstgr.cloud/ --output=json --output-path=docs/lighthouse/publica-despues-catalogo.json
-npx lighthouse https://srv2153504.hstgr.cloud/cliente/registro --output=json --output-path=docs/lighthouse/publica-despues-registro.json
+npx lighthouse https://byteblade.tech/ --output=json --output-path=docs/lighthouse/publica-despues-catalogo.json
+npx lighthouse https://byteblade.tech/cliente/registro --output=json --output-path=docs/lighthouse/publica-despues-registro.json
 ```
 
 1. Haga la **línea base pública** con el despliegue *anterior* a estas correcciones (o, si no existe, desactívelas
@@ -92,6 +92,10 @@ npx lighthouse https://srv2153504.hstgr.cloud/cliente/registro --output=json --o
 3. Verifique que la **accesibilidad siga en 90 o más** (hoy: 100).
 
 ## 7. Mediciones sobre la URL pública
+
+> **Nota (25 de noviembre):** la aplicación ahora se publica en **https://byteblade.tech**. Estas mediciones se hicieron
+> sobre la dirección anterior del mismo servidor; el código y la infraestructura son los mismos. Para repetirlas use el
+> dominio nuevo.
 
 Aplicación publicada en **https://srv2153504.hstgr.cloud** (VPS Ubuntu 24.04, Caddy con HTTPS). Mediciones del
 **12 de noviembre de 2026** con Lighthouse 13.5.0 desde las herramientas de Chrome 157, en ventana de incógnito, modo móvil
